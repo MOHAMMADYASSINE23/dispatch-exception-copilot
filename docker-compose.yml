@@ -1,0 +1,53 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: dispatch_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: copilot
+      POSTGRES_PASSWORD: copilot
+      POSTGRES_DB: dispatch
+    ports:
+      # Host 5433 -> container 5432 to avoid clashing with a local Postgres on 5432.
+      - "5433:5432"
+    volumes:
+      - dispatch_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U copilot -d dispatch"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      target: runner
+    container_name: dispatch_app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Inside the compose network the database host is the service name "db".
+      DATABASE_URL: "postgresql://copilot:copilot@db:5432/dispatch?schema=public"
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+
+  # One-off seeding service. Built from the `builder` stage so it has the full
+  # dev toolchain (tsx) needed by `prisma db seed`.
+  # Run it with:  docker compose --profile seed run --rm seed
+  seed:
+    profiles: ["seed"]
+    build:
+      context: .
+      target: builder
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://copilot:copilot@db:5432/dispatch?schema=public"
+    command: sh -c "npx prisma migrate deploy && npm run db:seed"
+
+volumes:
+  dispatch_pgdata:
