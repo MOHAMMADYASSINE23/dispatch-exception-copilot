@@ -11,6 +11,11 @@ import {
 } from "@/components/dashboard/status-badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { createExceptionFromTriage } from "@/app/actions/exceptions";
 import type { ExceptionTriageDraft } from "@/lib/types";
 import { useDispatchStore } from "@/store/use-dispatch-store";
@@ -138,25 +143,39 @@ export function TriageCards({
       </article>
 
       <div className="flex items-center gap-2">
-        <Button
-          variant="success"
-          className="flex-1"
-          onClick={handleApprove}
-          disabled={submitting || isProcessing}
-        >
-          <CheckCircle2 className="h-4 w-4" />
-          {submitting ? "Executing…" : "Approve & Execute"}
-        </Button>
-        <Button
-          variant="outline"
-          onClick={clearTriage}
-          disabled={submitting}
-          aria-label="Discard draft"
-          className="border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground"
-        >
-          <X className="h-4 w-4" />
-          Discard
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="success"
+              className="flex-1"
+              onClick={handleApprove}
+              disabled={submitting || isProcessing}
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              {submitting ? "Executing…" : "Approve & Execute"}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            Create the exception record and push the selected operational response into the workflow.
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              onClick={clearTriage}
+              disabled={submitting}
+              aria-label="Discard draft"
+              className="border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground"
+            >
+              <X className="h-4 w-4" />
+              Discard
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            Close the draft without saving it and return to the triage console.
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

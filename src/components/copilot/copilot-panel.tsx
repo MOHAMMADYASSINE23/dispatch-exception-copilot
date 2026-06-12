@@ -17,6 +17,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { analyzeException } from "@/app/actions/exceptions";
 import { ShipmentStatus } from "@/lib/types";
 import { useDispatchStore } from "@/store/use-dispatch-store";
@@ -174,16 +179,24 @@ export function CopilotPanel({ onExecuted }: { onExecuted: () => void }) {
               </p>
               <div className="flex flex-wrap gap-2">
                 {SAMPLE_PROMPTS.map((sample, index) => (
-                  <button
-                    key={sample}
-                    type="button"
-                    onClick={() => setRawInput(sample)}
-                    className="rounded-full border border-primary-foreground/10 bg-primary-foreground/10 px-3 py-1.5 text-left text-xs font-medium text-primary-foreground/70 transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-primary-foreground"
-                  >
-                    {index === 0 && "Vehicle"}
-                    {index === 1 && "Customer"}
-                    {index === 2 && "Weather"}
-                  </button>
+                  <Tooltip key={sample}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => setRawInput(sample)}
+                        className="rounded-full border border-primary-foreground/10 bg-primary-foreground/10 px-3 py-1.5 text-left text-xs font-medium text-primary-foreground/70 transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-primary-foreground"
+                      >
+                        {index === 0 && "Vehicle"}
+                        {index === 1 && "Customer"}
+                        {index === 2 && "Weather"}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {index === 0 && "Load a vehicle-breakdown example to speed up triage."}
+                      {index === 1 && "Load a customer-absence example for a missed delivery."}
+                      {index === 2 && "Load a weather-delay example for route disruption."}
+                    </TooltipContent>
+                  </Tooltip>
                 ))}
               </div>
               <p className="text-xs text-primary-foreground/50">
@@ -195,14 +208,21 @@ export function CopilotPanel({ onExecuted }: { onExecuted: () => void }) {
               </p>
             </div>
 
-            <Button
-              className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
-              onClick={handleAnalyze}
-              disabled={isProcessing}
-            >
-              <Sparkles className="h-4 w-4" />
-              Analyze
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+                  onClick={handleAnalyze}
+                  disabled={isProcessing}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Analyze
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Analyze the selected shipment note and generate a structured exception record, action plan, and customer message.
+              </TooltipContent>
+            </Tooltip>
           </div>
         )}
 

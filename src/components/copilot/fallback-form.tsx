@@ -14,6 +14,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { createExceptionFromTriage } from "@/app/actions/exceptions";
 import { Category, Severity } from "@/lib/types";
 import { useDispatchStore } from "@/store/use-dispatch-store";
@@ -169,25 +174,39 @@ export function FallbackForm({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="success"
-            className="flex-1"
-            onClick={handleSubmit}
-            disabled={submitting}
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            {submitting ? "Executing…" : "Approve & Execute"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={clearTriage}
-            disabled={submitting}
-            aria-label="Cancel manual triage"
-            className="border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground"
-          >
-            <X className="h-4 w-4" />
-            Cancel
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="success"
+                className="flex-1"
+                onClick={handleSubmit}
+                disabled={submitting}
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {submitting ? "Executing…" : "Approve & Execute"}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Save the manually entered exception and apply the same workflow rules as the AI path.
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                onClick={clearTriage}
+                disabled={submitting}
+                aria-label="Cancel manual triage"
+                className="border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground"
+              >
+                <X className="h-4 w-4" />
+                Cancel
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Close manual triage without saving and return to the main copilot composer.
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
     </section>

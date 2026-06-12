@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { IBM_Plex_Sans, Space_Grotesk } from "next/font/google";
 
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 const body = IBM_Plex_Sans({
@@ -30,7 +31,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${body.variable} ${display.variable} font-body antialiased`}>
-        {children}
+        <TooltipProvider delayDuration={180}>{children}</TooltipProvider>
         <Toaster richColors position="top-right" />
       </body>
     </html>

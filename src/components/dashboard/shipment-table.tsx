@@ -25,6 +25,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   markShipmentDelivered,
   markShipmentInTransit,
 } from "@/app/actions/shipments";
@@ -193,26 +198,40 @@ export function ShipmentTable({
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1.5">
                       {shipment.status === ShipmentStatus.DISPATCHED && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleInTransit(shipment)}
-                          disabled={isPending}
-                        >
-                          <Truck className="h-3.5 w-3.5" />
-                          Transit
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleInTransit(shipment)}
+                              disabled={isPending}
+                            >
+                              <Truck className="h-3.5 w-3.5" />
+                              Transit
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Move a dispatched shipment into transit when the courier has started the route.
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                       {shipment.status !== ShipmentStatus.DELIVERED && (
-                        <Button
-                          variant="success"
-                          size="sm"
-                          onClick={() => handleDeliver(shipment)}
-                          disabled={isPending}
-                        >
-                          <PackageCheck className="h-3.5 w-3.5" />
-                          Deliver
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="success"
+                              size="sm"
+                              onClick={() => handleDeliver(shipment)}
+                              disabled={isPending}
+                            >
+                              <PackageCheck className="h-3.5 w-3.5" />
+                              Deliver
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Mark the shipment as completed once it has been handed to the customer.
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                     </div>
                   </TableCell>

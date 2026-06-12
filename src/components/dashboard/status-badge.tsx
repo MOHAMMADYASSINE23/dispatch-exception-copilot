@@ -1,5 +1,10 @@
 import { Badge } from "@/components/ui/badge";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   ExceptionStatus,
   Severity,
   ShipmentStatus,
@@ -48,9 +53,22 @@ export function ShipmentStatusBadge({
   className?: string;
 }) {
   return (
-    <Badge variant={SHIPMENT_STATUS_VARIANT[status]} className={cn(className)}>
-      {SHIPMENT_STATUS_LABEL[status]}
-    </Badge>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge variant={SHIPMENT_STATUS_VARIANT[status]} className={cn(className)}>
+          {SHIPMENT_STATUS_LABEL[status]}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent>
+        {status === ShipmentStatus.HALTED
+          ? "This shipment is paused until exceptions are resolved or reassigned."
+          : status === ShipmentStatus.IN_TRANSIT
+            ? "The shipment is moving through the route and can still receive exception updates."
+            : status === ShipmentStatus.DISPATCHED
+              ? "The shipment has left dispatch and is waiting to be scanned into transit."
+              : "The shipment has been delivered and can no longer receive new exceptions."}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -62,9 +80,20 @@ export function SeverityBadge({
   className?: string;
 }) {
   return (
-    <Badge variant={SEVERITY_VARIANT[severity]} className={cn(className)}>
-      {severity}
-    </Badge>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge variant={SEVERITY_VARIANT[severity]} className={cn(className)}>
+          {severity}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent>
+        {severity === Severity.CRITICAL
+          ? "Critical issues usually halt the shipment and need immediate action."
+          : severity === Severity.HIGH
+            ? "High severity issues are important enough to halt the shipment in the workflow."
+            : "Low severity issues are useful context but usually do not stop the route."}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -76,12 +105,23 @@ export function ExceptionStatusBadge({
   className?: string;
 }) {
   return (
-    <Badge
-      variant={EXCEPTION_STATUS_VARIANT[status]}
-      className={cn("font-medium", className)}
-    >
-      {status}
-    </Badge>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge
+          variant={EXCEPTION_STATUS_VARIANT[status]}
+          className={cn("font-medium", className)}
+        >
+          {status}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent>
+        {status === ExceptionStatus.TRIAGE
+          ? "Queued for review. Nothing has been executed yet."
+          : status === ExceptionStatus.ACTIONING
+            ? "The issue is being handled and the shipment may still be paused."
+            : "The issue has been closed and can release the shipment if no open items remain."}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -99,8 +139,21 @@ export function CategoryBadge({
   className?: string;
 }) {
   return (
-    <Badge variant="outline" className={cn(className)}>
-      {CATEGORY_LABEL[category] ?? category}
-    </Badge>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge variant="outline" className={cn(className)}>
+          {CATEGORY_LABEL[category] ?? category}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent>
+        {category === "VEHICLE_ISSUE"
+          ? "Use for breakdowns, delays, and route interruptions tied to the vehicle."
+          : category === "CUSTOMER_ABSENT"
+            ? "Use when the driver cannot complete delivery because the recipient is unavailable."
+            : category === "WEATHER"
+              ? "Use for weather-related route disruption or safety constraints."
+              : "Exception category."}
+      </TooltipContent>
+    </Tooltip>
   );
 }
