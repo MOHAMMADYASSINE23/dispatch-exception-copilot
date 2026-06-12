@@ -28,21 +28,21 @@ interface SeedShipment {
   exceptions?: SeedException[];
 }
 
-// 15+ shipments with realistic Lebanese data: destinations, names, +961 phones.
+// Lean sample set that still covers all dashboard/state-machine use-cases.
 const SHIPMENTS: SeedShipment[] = [
   {
     trackingNumber: "LB-240001",
     customerName: "Ahmad Khalil",
     customerPhone: "+961 71 234 567",
     destinationCity: "Beirut",
-    status: ShipmentStatus.IN_TRANSIT,
+    status: ShipmentStatus.DISPATCHED,
   },
   {
     trackingNumber: "LB-240002",
     customerName: "Elie Saad",
     customerPhone: "+961 70 884 221",
     destinationCity: "Jounieh",
-    status: ShipmentStatus.DISPATCHED,
+    status: ShipmentStatus.IN_TRANSIT,
   },
   {
     trackingNumber: "LB-240003",
@@ -54,7 +54,7 @@ const SHIPMENTS: SeedShipment[] = [
       {
         severity: Severity.HIGH,
         category: Category.VEHICLE_ISSUE,
-        status: ExceptionStatus.ACTIONING,
+        status: ExceptionStatus.TRIAGE,
         rawInput:
           "el van 3etlit 3a tari2 Zahle, battery mfassakha w ma fini kammel",
         actionPlan:
@@ -74,7 +74,7 @@ const SHIPMENTS: SeedShipment[] = [
       {
         severity: Severity.CRITICAL,
         category: Category.WEATHER,
-        status: ExceptionStatus.TRIAGE,
+        status: ExceptionStatus.ACTIONING,
         rawInput:
           "fi 3asfe w shté ktir 3a Tripoli, el tari2 ma2tou3 w khatar 3al driver",
         actionPlan:
@@ -89,13 +89,6 @@ const SHIPMENTS: SeedShipment[] = [
     customerName: "Maya Aoun",
     customerPhone: "+961 71 902 334",
     destinationCity: "Saida",
-    status: ShipmentStatus.DELIVERED,
-  },
-  {
-    trackingNumber: "LB-240006",
-    customerName: "Hassan Fakih",
-    customerPhone: "+961 76 120 778",
-    destinationCity: "Tyre",
     status: ShipmentStatus.IN_TRANSIT,
     exceptions: [
       {
@@ -111,114 +104,11 @@ const SHIPMENTS: SeedShipment[] = [
     ],
   },
   {
-    trackingNumber: "LB-240007",
-    customerName: "Carla Gerges",
-    customerPhone: "+961 70 445 612",
-    destinationCity: "Byblos",
-    status: ShipmentStatus.DISPATCHED,
-  },
-  {
-    trackingNumber: "LB-240008",
-    customerName: "Ziad Nakhle",
-    customerPhone: "+961 03 221 904",
-    destinationCity: "Baalbek",
-    status: ShipmentStatus.IN_TRANSIT,
-  },
-  {
-    trackingNumber: "LB-240009",
-    customerName: "Layla Daher",
-    customerPhone: "+961 71 668 023",
-    destinationCity: "Batroun",
+    trackingNumber: "LB-240006",
+    customerName: "Hassan Fakih",
+    customerPhone: "+961 76 120 778",
+    destinationCity: "Tyre",
     status: ShipmentStatus.DELIVERED,
-  },
-  {
-    trackingNumber: "LB-240010",
-    customerName: "Georges Rizk",
-    customerPhone: "+961 76 339 871",
-    destinationCity: "Aley",
-    status: ShipmentStatus.HALTED,
-    exceptions: [
-      {
-        severity: Severity.HIGH,
-        category: Category.CUSTOMER_ABSENT,
-        status: ExceptionStatus.TRIAGE,
-        rawInput:
-          "el zboun mish mawjoud bel beit w ma byjaweb 3al telephone, address ghalat ba2a",
-        actionPlan:
-          "**Recommended Action Plan — Customer Absent (HIGH)**\n\n1. Attempt a call-back to the customer on the registered number.\n2. Send the rescheduling SMS with a self-service delivery window link.\n3. Hold the parcel at the local hub for one (1) retry before return.\n\n**ETA impact:** +2–4 hrs (same-day at risk)",
-        notificationText:
-          "Hi! We tried to deliver your parcel but couldn't reach you. Reply with a convenient time and we'll redeliver. We'll hold it safely at your local hub in the meantime.",
-      },
-    ],
-  },
-  {
-    trackingNumber: "LB-240011",
-    customerName: "Sara Ibrahim",
-    customerPhone: "+961 71 504 188",
-    destinationCity: "Nabatieh",
-    status: ShipmentStatus.DISPATCHED,
-  },
-  {
-    trackingNumber: "LB-240012",
-    customerName: "Tony Abou Khalil",
-    customerPhone: "+961 03 990 556",
-    destinationCity: "Zgharta",
-    status: ShipmentStatus.IN_TRANSIT,
-  },
-  {
-    trackingNumber: "LB-240013",
-    customerName: "Rana Sleiman",
-    customerPhone: "+961 76 712 340",
-    destinationCity: "Bcharre",
-    status: ShipmentStatus.DISPATCHED,
-  },
-  {
-    trackingNumber: "LB-240014",
-    customerName: "Karim Younes",
-    customerPhone: "+961 70 318 627",
-    destinationCity: "Jbeil",
-    status: ShipmentStatus.IN_TRANSIT,
-  },
-  {
-    trackingNumber: "LB-240015",
-    customerName: "Joelle Matar",
-    customerPhone: "+961 71 845 002",
-    destinationCity: "Beirut",
-    status: ShipmentStatus.DELIVERED,
-  },
-  {
-    trackingNumber: "LB-240016",
-    customerName: "Walid Chamoun",
-    customerPhone: "+961 76 263 410",
-    destinationCity: "Sin El Fil",
-    status: ShipmentStatus.HALTED,
-    exceptions: [
-      {
-        severity: Severity.CRITICAL,
-        category: Category.VEHICLE_ISSUE,
-        status: ExceptionStatus.ACTIONING,
-        rawInput:
-          "sar 7adis zghir 3al autostrade, el camion mish 2ader yfut, police 3al makén",
-        actionPlan:
-          "**Recommended Action Plan — Vehicle Issue (CRITICAL)**\n\n1. Dispatch the nearest backup vehicle to recover the parcels on board.\n2. Move the driver's remaining stops to the relief route.\n3. Log the vehicle fault with the fleet team for inspection.\n\n**ETA impact:** Next-day reschedule likely",
-        notificationText:
-          "[Priority] Hi! There's a short delay with your delivery due to a vehicle issue on our side. A backup courier is taking over and we'll update you with a new ETA shortly. Thank you for your patience.",
-      },
-    ],
-  },
-  {
-    trackingNumber: "LB-240017",
-    customerName: "Dima Hamdan",
-    customerPhone: "+961 71 077 985",
-    destinationCity: "Chtaura",
-    status: ShipmentStatus.DISPATCHED,
-  },
-  {
-    trackingNumber: "LB-240018",
-    customerName: "Elias Boutros",
-    customerPhone: "+961 03 412 668",
-    destinationCity: "Dbayeh",
-    status: ShipmentStatus.IN_TRANSIT,
   },
 ];
 

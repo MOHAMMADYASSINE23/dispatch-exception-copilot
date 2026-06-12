@@ -31,7 +31,7 @@ export default async function HomePage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 md:justify-end">
-            <div className="flex items-center gap-2 rounded-full border border-primary/15 bg-background/70 px-3 py-1.5 text-xs font-semibold text-primary shadow-sm">
+            <div className="flex items-center gap-2 rounded-full border border-primary/15 bg-background px-3 py-1.5 text-xs font-semibold text-primary shadow-sm">
               <CircleDot className="h-3.5 w-3.5 text-success" />
               Live operations
             </div>
