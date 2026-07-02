@@ -11,7 +11,7 @@ import { toast } from "sonner";
 
 import {
   CategoryBadge,
-  ExceptionStatusBadge,
+  ResolvedBadge,
   SeverityBadge,
   ShipmentStatusBadge,
 } from "@/components/dashboard/status-badge";
@@ -33,20 +33,12 @@ import {
   markShipmentDelivered,
   markShipmentInTransit,
 } from "@/app/actions/shipments";
-import { updateExceptionStatus } from "@/app/actions/exceptions";
-import {
-  ExceptionStatus,
-  ShipmentStatus,
-  type ShipmentDTO,
-} from "@/lib/types";
+import { updateExceptionResolution } from "@/app/actions/exceptions";
+import { ShipmentStatus, type ShipmentDTO } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 function openExceptionCount(shipment: ShipmentDTO): number {
-  return shipment.exceptions.filter(
-    (exception) =>
-      exception.status === ExceptionStatus.TRIAGE ||
-      exception.status === ExceptionStatus.ACTIONING,
-  ).length;
+  return shipment.exceptions.filter((exception) => !exception.resolved).length;
 }
 
 export function ShipmentTable({
@@ -89,20 +81,17 @@ export function ShipmentTable({
     });
   }
 
-  function handleResolve(exceptionId: string, next: ExceptionStatus) {
+  function handleResolve(exceptionId: string) {
     startTransition(async () => {
-      const result = await updateExceptionStatus(exceptionId, next);
+      const result = await updateExceptionResolution(exceptionId, true);
       if (!result.ok) {
         toast.error("Could not update exception", {
           description: result.error,
         });
         return;
       }
-      toast.success(`Exception moved to ${next}`, {
-        description:
-          next === ExceptionStatus.RESOLVED
-            ? "Shipment auto-released if no open exceptions remain."
-            : "Audit log updated.",
+      toast.success("Exception resolved", {
+        description: "Shipment auto-released if no open exceptions remain.",
       });
       onMutated();
     });
@@ -180,9 +169,6 @@ export function ShipmentTable({
                   </TableCell>
                   <TableCell>
                     <div className="font-medium">{shipment.customerName}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {shipment.customerPhone}
-                    </div>
                   </TableCell>
                   <TableCell>{shipment.destinationCity}</TableCell>
                   <TableCell>
@@ -249,7 +235,7 @@ export function ShipmentTable({
                           <div className="flex flex-wrap items-center gap-2">
                             <SeverityBadge severity={exception.severity} />
                             <CategoryBadge category={exception.category} />
-                            <ExceptionStatusBadge status={exception.status} />
+                            <ResolvedBadge resolved={exception.resolved} />
                             <span className="text-xs text-muted-foreground">
                               {new Date(
                                 exception.createdAt,
@@ -259,39 +245,18 @@ export function ShipmentTable({
                           <p className="max-w-3xl text-xs italic leading-relaxed text-muted-foreground">
                             &ldquo;{exception.rawInput}&rdquo;
                           </p>
-                          <div className="flex gap-1.5">
-                            {exception.status === ExceptionStatus.TRIAGE && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  handleResolve(
-                                    exception.id,
-                                    ExceptionStatus.ACTIONING,
-                                  )
-                                }
-                                disabled={isPending}
-                              >
-                                Start actioning
-                              </Button>
-                            )}
-                            {exception.status !==
-                              ExceptionStatus.RESOLVED && (
+                          {!exception.resolved && (
+                            <div className="flex gap-1.5">
                               <Button
                                 variant="secondary"
                                 size="sm"
-                                onClick={() =>
-                                  handleResolve(
-                                    exception.id,
-                                    ExceptionStatus.RESOLVED,
-                                  )
-                                }
+                                onClick={() => handleResolve(exception.id)}
                                 disabled={isPending}
                               >
                                 Resolve
                               </Button>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

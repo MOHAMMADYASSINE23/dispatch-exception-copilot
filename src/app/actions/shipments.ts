@@ -4,15 +4,12 @@ import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/db";
 import {
-  ExceptionStatus,
   ShipmentStatus,
   type ActionResult,
-  type AuditLogDTO,
   type ShipmentDTO,
 } from "@/lib/types";
+import { describeValidationError, idSchema } from "@/lib/validation";
 import type { Exception, Shipment } from "@prisma/client";
-
-const ACTOR = "Dispatcher_System";
 
 // Sort shipments so the ones that need attention surface first.
 const STATUS_PRIORITY: Record<ShipmentStatus, number> = {
@@ -29,7 +26,6 @@ function serializeShipment(shipment: ShipmentWithExceptions): ShipmentDTO {
     id: shipment.id,
     trackingNumber: shipment.trackingNumber,
     customerName: shipment.customerName,
-    customerPhone: shipment.customerPhone,
     destinationCity: shipment.destinationCity,
     status: shipment.status,
     createdAt: shipment.createdAt.toISOString(),
@@ -42,7 +38,7 @@ function serializeShipment(shipment: ShipmentWithExceptions): ShipmentDTO {
         shipmentId: exception.shipmentId,
         severity: exception.severity,
         category: exception.category,
-        status: exception.status,
+        resolved: exception.resolved,
         rawInput: exception.rawInput,
         actionPlan: exception.actionPlan,
         notificationText: exception.notificationText,
@@ -69,12 +65,18 @@ export async function getShipments(): Promise<ShipmentDTO[]> {
 }
 
 /**
- * Rule A: A shipment cannot be marked DELIVERED while it has any exception in
- * TRIAGE or ACTIONING. Rule C: the status change is recorded in the audit log.
+ * Rule A: A shipment cannot be marked DELIVERED while it has any unresolved
+ * exception. Rule C: the status change is recorded in the audit log.
  */
 export async function markShipmentDelivered(
   shipmentId: string,
 ): Promise<ActionResult<ShipmentDTO>> {
+  const parsedId = idSchema.safeParse(shipmentId);
+  if (!parsedId.success) {
+    return { ok: false, error: describeValidationError(parsedId.error) };
+  }
+  shipmentId = parsedId.data;
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       const shipment = await tx.shipment.findUnique({
@@ -92,9 +94,7 @@ export async function markShipmentDelivered(
 
       // Rule A — block delivery while open exceptions remain.
       const openExceptions = shipment.exceptions.filter(
-        (exception) =>
-          exception.status === ExceptionStatus.TRIAGE ||
-          exception.status === ExceptionStatus.ACTIONING,
+        (exception) => !exception.resolved,
       );
 
       if (openExceptions.length > 0) {
@@ -103,25 +103,12 @@ export async function markShipmentDelivered(
         );
       }
 
-      const previousStatus = shipment.status;
-
       const updated = await tx.shipment.update({
         where: { id: shipmentId },
         data: { status: ShipmentStatus.DELIVERED },
         include: { exceptions: true },
       });
 
-      // Rule C — audit the status transition.
-      await tx.auditLog.create({
-        data: {
-          entityType: "SHIPMENT",
-          entityId: shipmentId,
-          action: "STATUS_CHANGE",
-          oldState: previousStatus,
-          newState: ShipmentStatus.DELIVERED,
-          changedBy: ACTOR,
-        },
-      });
 
       return updated;
     });
@@ -147,6 +134,12 @@ export async function markShipmentDelivered(
 export async function markShipmentInTransit(
   shipmentId: string,
 ): Promise<ActionResult<ShipmentDTO>> {
+  const parsedId = idSchema.safeParse(shipmentId);
+  if (!parsedId.success) {
+    return { ok: false, error: describeValidationError(parsedId.error) };
+  }
+  shipmentId = parsedId.data;
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       const shipment = await tx.shipment.findUnique({
@@ -164,24 +157,12 @@ export async function markShipmentInTransit(
         );
       }
 
-      const previousStatus = shipment.status;
-
       const updated = await tx.shipment.update({
         where: { id: shipmentId },
         data: { status: ShipmentStatus.IN_TRANSIT },
         include: { exceptions: true },
       });
 
-      await tx.auditLog.create({
-        data: {
-          entityType: "SHIPMENT",
-          entityId: shipmentId,
-          action: "STATUS_CHANGE",
-          oldState: previousStatus,
-          newState: ShipmentStatus.IN_TRANSIT,
-          changedBy: ACTOR,
-        },
-      });
 
       return updated;
     });
@@ -197,21 +178,3 @@ export async function markShipmentInTransit(
   }
 }
 
-/** Recent audit-log entries for the "Activity" feed (newest first). */
-export async function getRecentAuditLogs(limit = 12): Promise<AuditLogDTO[]> {
-  const logs = await prisma.auditLog.findMany({
-    orderBy: { createdAt: "desc" },
-    take: limit,
-  });
-
-  return logs.map((log) => ({
-    id: log.id,
-    entityType: log.entityType,
-    entityId: log.entityId,
-    action: log.action,
-    oldState: log.oldState,
-    newState: log.newState,
-    changedBy: log.changedBy,
-    createdAt: log.createdAt.toISOString(),
-  }));
-}

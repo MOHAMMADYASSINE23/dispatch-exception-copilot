@@ -1,19 +1,11 @@
-import {
-  Category,
-  ExceptionStatus,
-  PrismaClient,
-  Severity,
-  ShipmentStatus,
-} from "@prisma/client";
+import { Category, PrismaClient, Severity, ShipmentStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
-
-const ACTOR = "Dispatcher_System";
 
 interface SeedException {
   severity: Severity;
   category: Category;
-  status: ExceptionStatus;
+  resolved: boolean;
   rawInput: string;
   actionPlan: string;
   notificationText: string;
@@ -22,7 +14,6 @@ interface SeedException {
 interface SeedShipment {
   trackingNumber: string;
   customerName: string;
-  customerPhone: string;
   destinationCity: string;
   status: ShipmentStatus;
   exceptions?: SeedException[];
@@ -33,28 +24,25 @@ const SHIPMENTS: SeedShipment[] = [
   {
     trackingNumber: "LB-240001",
     customerName: "Ahmad Khalil",
-    customerPhone: "+961 71 234 567",
     destinationCity: "Beirut",
     status: ShipmentStatus.DISPATCHED,
   },
   {
     trackingNumber: "LB-240002",
     customerName: "Elie Saad",
-    customerPhone: "+961 70 884 221",
     destinationCity: "Jounieh",
     status: ShipmentStatus.IN_TRANSIT,
   },
   {
     trackingNumber: "LB-240003",
     customerName: "Rami Haddad",
-    customerPhone: "+961 76 551 909",
     destinationCity: "Zahle",
     status: ShipmentStatus.HALTED,
     exceptions: [
       {
         severity: Severity.HIGH,
         category: Category.VEHICLE_ISSUE,
-        status: ExceptionStatus.TRIAGE,
+        resolved: false,
         rawInput:
           "el van 3etlit 3a tari2 Zahle, battery mfassakha w ma fini kammel",
         actionPlan:
@@ -67,14 +55,13 @@ const SHIPMENTS: SeedShipment[] = [
   {
     trackingNumber: "LB-240004",
     customerName: "Nour Mansour",
-    customerPhone: "+961 03 778 145",
     destinationCity: "Tripoli",
     status: ShipmentStatus.HALTED,
     exceptions: [
       {
         severity: Severity.CRITICAL,
         category: Category.WEATHER,
-        status: ExceptionStatus.ACTIONING,
+        resolved: false,
         rawInput:
           "fi 3asfe w shté ktir 3a Tripoli, el tari2 ma2tou3 w khatar 3al driver",
         actionPlan:
@@ -87,14 +74,13 @@ const SHIPMENTS: SeedShipment[] = [
   {
     trackingNumber: "LB-240005",
     customerName: "Maya Aoun",
-    customerPhone: "+961 71 902 334",
     destinationCity: "Saida",
     status: ShipmentStatus.IN_TRANSIT,
     exceptions: [
       {
         severity: Severity.LOW,
         category: Category.CUSTOMER_ABSENT,
-        status: ExceptionStatus.RESOLVED,
+        resolved: true,
         rawInput: "zboun ma kén mawjoud awwal marra, rje3na ba3den w sallamna",
         actionPlan:
           "**Recommended Action Plan — Customer Absent (LOW)**\n\n1. Attempt a call-back to the customer on the registered number.\n2. Send the rescheduling SMS with a self-service delivery window link.\n3. Hold the parcel at the local hub for one (1) retry before return.\n\n**ETA impact:** +30–60 min (minor delay)",
@@ -106,7 +92,6 @@ const SHIPMENTS: SeedShipment[] = [
   {
     trackingNumber: "LB-240006",
     customerName: "Hassan Fakih",
-    customerPhone: "+961 76 120 778",
     destinationCity: "Tyre",
     status: ShipmentStatus.DELIVERED,
   },
@@ -114,8 +99,7 @@ const SHIPMENTS: SeedShipment[] = [
 
 async function main() {
   console.log("Resetting existing data…");
-  // Order matters because of FK constraints: logs -> exceptions -> shipments.
-  await prisma.auditLog.deleteMany();
+  // Order matters because of FK constraints: exceptions -> shipments.
   await prisma.exception.deleteMany();
   await prisma.shipment.deleteMany();
 
@@ -130,17 +114,6 @@ async function main() {
       data: shipmentData,
     });
 
-    // Audit the initial shipment creation so the activity feed is populated.
-    await prisma.auditLog.create({
-      data: {
-        entityType: "SHIPMENT",
-        entityId: shipment.id,
-        action: "SHIPMENT_CREATED",
-        oldState: null,
-        newState: shipment.status,
-        changedBy: ACTOR,
-      },
-    });
 
     for (const exceptionSeed of exceptions ?? []) {
       const exception = await prisma.exception.create({
@@ -148,25 +121,13 @@ async function main() {
           shipmentId: shipment.id,
           severity: exceptionSeed.severity,
           category: exceptionSeed.category,
-          status: exceptionSeed.status,
+          resolved: exceptionSeed.resolved,
           rawInput: exceptionSeed.rawInput,
           actionPlan: exceptionSeed.actionPlan,
           notificationText: exceptionSeed.notificationText,
         },
       });
       exceptionCount += 1;
-
-      await prisma.auditLog.create({
-        data: {
-          exceptionId: exception.id,
-          entityType: "EXCEPTION",
-          entityId: exception.id,
-          action: "EXCEPTION_CREATED",
-          oldState: null,
-          newState: `${exception.status} (${exception.severity}/${exception.category})`,
-          changedBy: ACTOR,
-        },
-      });
     }
   }
 

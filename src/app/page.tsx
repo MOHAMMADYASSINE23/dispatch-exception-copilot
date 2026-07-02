@@ -1,16 +1,13 @@
 import { Boxes, CircleDot, ShieldCheck } from "lucide-react";
 
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
-import { getRecentAuditLogs, getShipments } from "@/app/actions/shipments";
+import { getShipments } from "@/app/actions/shipments";
 
 // Always render fresh data on request — this dashboard is inherently dynamic.
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [shipments, logs] = await Promise.all([
-    getShipments(),
-    getRecentAuditLogs(),
-  ]);
+  const shipments = await getShipments();
 
   return (
     <main className="ops-shell min-h-screen">
@@ -45,7 +42,7 @@ export default async function HomePage() {
       </header>
 
       <div className="mx-auto max-w-[1440px] px-5 py-6 lg:px-7 lg:py-8">
-        <DashboardClient initialShipments={shipments} initialLogs={logs} />
+        <DashboardClient initialShipments={shipments} />
       </div>
     </main>
   );

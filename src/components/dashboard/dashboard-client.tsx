@@ -9,16 +9,10 @@ import {
   Truck,
 } from "lucide-react";
 
-import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { ShipmentTable } from "@/components/dashboard/shipment-table";
 import { CopilotPanel } from "@/components/copilot/copilot-panel";
-import { getRecentAuditLogs, getShipments } from "@/app/actions/shipments";
-import {
-  ExceptionStatus,
-  ShipmentStatus,
-  type AuditLogDTO,
-  type ShipmentDTO,
-} from "@/lib/types";
+import { getShipments } from "@/app/actions/shipments";
+import { ShipmentStatus, type ShipmentDTO } from "@/lib/types";
 import { useDispatchStore } from "@/store/use-dispatch-store";
 import { cn } from "@/lib/utils";
 
@@ -56,14 +50,11 @@ function StatCard({
 
 export function DashboardClient({
   initialShipments,
-  initialLogs,
 }: {
   initialShipments: ShipmentDTO[];
-  initialLogs: AuditLogDTO[];
 }) {
   const shipments = useDispatchStore((state) => state.shipments);
   const setShipments = useDispatchStore((state) => state.setShipments);
-  const [logs, setLogs] = useState<AuditLogDTO[]>(initialLogs);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
@@ -74,12 +65,8 @@ export function DashboardClient({
   }, [initialShipments, setShipments]);
 
   const refresh = useCallback(async () => {
-    const [nextShipments, nextLogs] = await Promise.all([
-      getShipments(),
-      getRecentAuditLogs(),
-    ]);
+    const nextShipments = await getShipments();
     setShipments(nextShipments);
-    setLogs(nextLogs);
     setLastSynced(new Date());
   }, [setShipments]);
 
@@ -104,12 +91,7 @@ export function DashboardClient({
 
   const openExceptions = displayShipments.reduce(
     (total, shipment) =>
-      total +
-      shipment.exceptions.filter(
-        (exception) =>
-          exception.status === ExceptionStatus.TRIAGE ||
-          exception.status === ExceptionStatus.ACTIONING,
-      ).length,
+      total + shipment.exceptions.filter((exception) => !exception.resolved).length,
     0,
   );
 
@@ -164,8 +146,6 @@ export function DashboardClient({
         </div>
 
         <ShipmentTable shipments={displayShipments} onMutated={refresh} />
-
-        <ActivityFeed logs={logs} />
       </section>
 
       {/* Right column — CoPilot */}

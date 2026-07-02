@@ -1,29 +1,25 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { z } from "zod";
 
 import { prisma } from "@/lib/db";
 import { analyzeExceptionText } from "@/lib/mock-ai";
 import {
-  Category,
-  ExceptionStatus,
   Severity,
   ShipmentStatus,
   type ActionResult,
   type AnalysisResult,
   type ExceptionDTO,
 } from "@/lib/types";
+import {
+  createExceptionInputSchema,
+  describeValidationError,
+  idSchema,
+  resolvedSchema,
+} from "@/lib/validation";
 
-const ACTOR = "Dispatcher_System";
-
-interface CreateExceptionInput {
-  shipmentId: string;
-  severity: Severity;
-  category: Category;
-  rawInput: string;
-  actionPlan: string;
-  notificationText: string;
-}
+type CreateExceptionInput = z.infer<typeof createExceptionInputSchema>;
 
 function isHaltingSeverity(severity: Severity): boolean {
   return severity === Severity.HIGH || severity === Severity.CRITICAL;
@@ -61,18 +57,12 @@ export async function analyzeException(
 export async function createExceptionFromTriage(
   input: CreateExceptionInput,
 ): Promise<ActionResult<ExceptionDTO>> {
+  const parsed = createExceptionInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: describeValidationError(parsed.error) };
+  }
   const { shipmentId, severity, category, rawInput, actionPlan, notificationText } =
-    input;
-
-  if (!rawInput.trim()) {
-    return { ok: false, error: "Raw input is required to log an exception." };
-  }
-  if (!actionPlan.trim() || !notificationText.trim()) {
-    return {
-      ok: false,
-      error: "An action plan and a customer notification are both required.",
-    };
-  }
+    parsed.data;
 
   try {
     const created = await prisma.$transaction(async (tx) => {
@@ -90,7 +80,7 @@ export async function createExceptionFromTriage(
         );
       }
 
-      // Persist the exception (defaults to TRIAGE per the schema).
+      // Persist the exception (defaults to unresolved per the schema).
       const exception = await tx.exception.create({
         data: {
           shipmentId,
@@ -102,40 +92,14 @@ export async function createExceptionFromTriage(
         },
       });
 
-      // Rule C — audit the exception creation.
-      await tx.auditLog.create({
-        data: {
-          exceptionId: exception.id,
-          entityType: "EXCEPTION",
-          entityId: exception.id,
-          action: "EXCEPTION_CREATED",
-          oldState: null,
-          newState: `${ExceptionStatus.TRIAGE} (${severity}/${category})`,
-          changedBy: ACTOR,
-        },
-      });
 
       // Rule B — HIGH/CRITICAL halts the parent shipment.
       if (isHaltingSeverity(severity) && shipment.status !== ShipmentStatus.HALTED) {
-        const previousStatus = shipment.status;
-
         await tx.shipment.update({
           where: { id: shipmentId },
           data: { status: ShipmentStatus.HALTED },
         });
 
-        // Rule C — audit the forced shipment transition.
-        await tx.auditLog.create({
-          data: {
-            exceptionId: exception.id,
-            entityType: "SHIPMENT",
-            entityId: shipmentId,
-            action: "AUTO_HALT",
-            oldState: previousStatus,
-            newState: ShipmentStatus.HALTED,
-            changedBy: ACTOR,
-          },
-        });
       }
 
       return exception;
@@ -150,7 +114,7 @@ export async function createExceptionFromTriage(
         shipmentId: created.shipmentId,
         severity: created.severity,
         category: created.category,
-        status: created.status,
+        resolved: created.resolved,
         rawInput: created.rawInput,
         actionPlan: created.actionPlan,
         notificationText: created.notificationText,
@@ -168,16 +132,27 @@ export async function createExceptionFromTriage(
 }
 
 /**
- * Move an exception along its lifecycle (TRIAGE -> ACTIONING -> RESOLVED).
+ * Flip an exception's `resolved` flag.
  *
  * Rule C: audited. When the last open exception on a shipment is resolved and
  * the shipment is currently HALTED, it is released back to IN_TRANSIT so the
  * dispatcher can subsequently deliver it (Rule A then permits delivery).
  */
-export async function updateExceptionStatus(
+export async function updateExceptionResolution(
   exceptionId: string,
-  newStatus: ExceptionStatus,
+  resolved: boolean,
 ): Promise<ActionResult<ExceptionDTO>> {
+  const parsedId = idSchema.safeParse(exceptionId);
+  const parsedResolved = resolvedSchema.safeParse(resolved);
+  if (!parsedId.success) {
+    return { ok: false, error: describeValidationError(parsedId.error) };
+  }
+  if (!parsedResolved.success) {
+    return { ok: false, error: describeValidationError(parsedResolved.error) };
+  }
+  exceptionId = parsedId.data;
+  resolved = parsedResolved.data;
+
   try {
     const updated = await prisma.$transaction(async (tx) => {
       const exception = await tx.exception.findUnique({
@@ -188,41 +163,25 @@ export async function updateExceptionStatus(
         throw new Error("Exception not found.");
       }
 
-      if (exception.status === newStatus) {
-        throw new Error(`Exception is already ${newStatus}.`);
+      if (exception.resolved === resolved) {
+        throw new Error(
+          `Exception is already ${resolved ? "resolved" : "open"}.`,
+        );
       }
-
-      const previousStatus = exception.status;
 
       const next = await tx.exception.update({
         where: { id: exceptionId },
-        data: { status: newStatus },
+        data: { resolved },
       });
 
-      // Rule C — audit the exception transition.
-      await tx.auditLog.create({
-        data: {
-          exceptionId,
-          entityType: "EXCEPTION",
-          entityId: exceptionId,
-          action: "STATUS_CHANGE",
-          oldState: previousStatus,
-          newState: newStatus,
-          changedBy: ACTOR,
-        },
-      });
 
       // Auto-release a halted shipment once it has no more open exceptions.
-      if (newStatus === ExceptionStatus.RESOLVED) {
+      if (resolved) {
         const siblings = await tx.exception.findMany({
           where: { shipmentId: exception.shipmentId },
         });
 
-        const stillOpen = siblings.some(
-          (sibling) =>
-            sibling.status === ExceptionStatus.TRIAGE ||
-            sibling.status === ExceptionStatus.ACTIONING,
-        );
+        const stillOpen = siblings.some((sibling) => !sibling.resolved);
 
         const shipment = await tx.shipment.findUnique({
           where: { id: exception.shipmentId },
@@ -234,17 +193,6 @@ export async function updateExceptionStatus(
             data: { status: ShipmentStatus.IN_TRANSIT },
           });
 
-          await tx.auditLog.create({
-            data: {
-              exceptionId,
-              entityType: "SHIPMENT",
-              entityId: exception.shipmentId,
-              action: "AUTO_RELEASE",
-              oldState: ShipmentStatus.HALTED,
-              newState: ShipmentStatus.IN_TRANSIT,
-              changedBy: ACTOR,
-            },
-          });
         }
       }
 
@@ -260,7 +208,7 @@ export async function updateExceptionStatus(
         shipmentId: updated.shipmentId,
         severity: updated.severity,
         category: updated.category,
-        status: updated.status,
+        resolved: updated.resolved,
         rawInput: updated.rawInput,
         actionPlan: updated.actionPlan,
         notificationText: updated.notificationText,

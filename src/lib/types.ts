@@ -1,18 +1,8 @@
-import type {
-  Category,
-  Severity,
-  ExceptionStatus,
-  ShipmentStatus,
-} from "@prisma/client";
+import type { Category, Severity, ShipmentStatus } from "@prisma/client";
 
 // Re-export Prisma enums so UI/store code has a single import surface and does
 // not need to reach into the generated client directly.
-export {
-  Category,
-  Severity,
-  ExceptionStatus,
-  ShipmentStatus,
-} from "@prisma/client";
+export { Category, Severity, ShipmentStatus } from "@prisma/client";
 
 /**
  * The structured record produced by the (mock) AI analysis. `etaImpact` is a
@@ -52,7 +42,6 @@ export interface ShipmentDTO {
   id: string;
   trackingNumber: string;
   customerName: string;
-  customerPhone: string;
   destinationCity: string;
   status: ShipmentStatus;
   createdAt: string;
@@ -65,23 +54,12 @@ export interface ExceptionDTO {
   shipmentId: string;
   severity: Severity;
   category: Category;
-  status: ExceptionStatus;
+  resolved: boolean;
   rawInput: string;
   actionPlan: string;
   notificationText: string;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface AuditLogDTO {
-  id: string;
-  entityType: string;
-  entityId: string;
-  action: string;
-  oldState: string | null;
-  newState: string;
-  changedBy: string;
-  createdAt: string;
 }
 
 /** Discriminated result type returned by server actions. */

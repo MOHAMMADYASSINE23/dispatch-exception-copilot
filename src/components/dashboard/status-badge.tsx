@@ -4,11 +4,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  ExceptionStatus,
-  Severity,
-  ShipmentStatus,
-} from "@/lib/types";
+import { Severity, ShipmentStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type BadgeVariant =
@@ -39,11 +35,6 @@ const SEVERITY_VARIANT: Record<Severity, BadgeVariant> = {
   [Severity.LOW]: "secondary",
 };
 
-const EXCEPTION_STATUS_VARIANT: Record<ExceptionStatus, BadgeVariant> = {
-  [ExceptionStatus.TRIAGE]: "warning",
-  [ExceptionStatus.ACTIONING]: "default",
-  [ExceptionStatus.RESOLVED]: "success",
-};
 
 export function ShipmentStatusBadge({
   status,
@@ -97,38 +88,42 @@ export function SeverityBadge({
   );
 }
 
-export function ExceptionStatusBadge({
-  status,
+export function ResolvedBadge({
+  resolved,
   className,
 }: {
-  status: ExceptionStatus;
+  resolved: boolean;
   className?: string;
 }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Badge
-          variant={EXCEPTION_STATUS_VARIANT[status]}
+          variant={resolved ? "success" : "warning"}
           className={cn("font-medium", className)}
         >
-          {status}
+          {resolved ? "Resolved" : "Open"}
         </Badge>
       </TooltipTrigger>
       <TooltipContent>
-        {status === ExceptionStatus.TRIAGE
-          ? "Queued for review. Nothing has been executed yet."
-          : status === ExceptionStatus.ACTIONING
-            ? "The issue is being handled and the shipment may still be paused."
-            : "The issue has been closed and can release the shipment if no open items remain."}
+        {resolved
+          ? "The issue has been closed and can release the shipment if no other open items remain."
+          : "Still open — the shipment may be paused on this until it's resolved."}
       </TooltipContent>
     </Tooltip>
   );
 }
 
 const CATEGORY_LABEL: Record<string, string> = {
-  VEHICLE_ISSUE: "Vehicle",
-  CUSTOMER_ABSENT: "Customer absent",
-  WEATHER: "Weather",
+  VEHICLE_ISSUE: "🚐 Vehicle Issue",
+  CUSTOMER_ABSENT: "🏠 Customer Absent",
+  WEATHER: "⛈️ Weather",
+};
+
+const CATEGORY_DESCRIPTION: Record<string, string> = {
+  VEHICLE_ISSUE: "Vehicle breakdown, mechanical failure, or transport issue",
+  CUSTOMER_ABSENT: "Recipient unavailable — reschedule delivery needed",
+  WEATHER: "Severe weather — safety risk or road closure",
 };
 
 export function CategoryBadge({
@@ -146,13 +141,7 @@ export function CategoryBadge({
         </Badge>
       </TooltipTrigger>
       <TooltipContent>
-        {category === "VEHICLE_ISSUE"
-          ? "Use for breakdowns, delays, and route interruptions tied to the vehicle."
-          : category === "CUSTOMER_ABSENT"
-            ? "Use when the driver cannot complete delivery because the recipient is unavailable."
-            : category === "WEATHER"
-              ? "Use for weather-related route disruption or safety constraints."
-              : "Exception category."}
+        {CATEGORY_DESCRIPTION[category] ?? "Exception category."}
       </TooltipContent>
     </Tooltip>
   );
