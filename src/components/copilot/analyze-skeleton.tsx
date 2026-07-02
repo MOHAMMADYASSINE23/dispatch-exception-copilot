@@ -13,11 +13,8 @@ export function AnalyzeSkeleton() {
       </div>
 
       {[0, 1, 2].map((index) => (
-        <div key={index} className="triage-panel rounded-lg p-4">
-          <div className="space-y-2 pb-3">
-            <Skeleton className="h-4 w-32 bg-primary-foreground/15" />
-            <Skeleton className="h-3 w-48 bg-primary-foreground/10" />
-          </div>
+        <div key={index} className="triage-panel rounded-lg p-3">
+          <Skeleton className="mb-2 h-3.5 w-32 bg-primary-foreground/15" />
           <div className="space-y-2">
             <Skeleton className="h-3 w-full bg-primary-foreground/10" />
             <Skeleton className="h-3 w-[92%] bg-primary-foreground/10" />

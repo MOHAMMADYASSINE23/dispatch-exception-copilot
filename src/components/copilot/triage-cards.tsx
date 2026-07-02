@@ -68,78 +68,69 @@ export function TriageCards({
   }
 
   return (
-    <div className="space-y-4 text-primary-foreground">
+    <div className="space-y-3 text-primary-foreground">
       <div className="flex items-center justify-between">
-        <div>
-          <h3 className="font-display text-base font-semibold tracking-[-0.02em]">
-            Proposed resolution
-          </h3>
-          <p className="text-xs text-primary-foreground/50">
-            Three artifacts are staged for execution.
-          </p>
-        </div>
-        <span className="rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-accent">
+        <h3 className="font-display text-sm font-semibold tracking-[-0.02em]">
+          Proposed resolution
+        </h3>
+        <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-accent">
           AI draft
         </span>
       </div>
 
       {/* Card 1 — Structured record */}
-      <article className="triage-panel rounded-lg p-4">
-        <div className="mb-3">
-          <h4 className="flex items-center gap-2 font-display text-base font-semibold">
-            <CheckCircle2 className="h-4 w-4 text-accent" />
-            Structured Record
-          </h4>
-          <p className="mt-1 text-xs text-primary-foreground/50">
-            Normalized, machine-readable fields.
-          </p>
-        </div>
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-primary-foreground/50">Severity</span>
-            <SeverityBadge severity={structuredRecord.severity} />
-            <Separator orientation="vertical" className="h-4 bg-primary-foreground/20" />
-            <span className="text-xs text-primary-foreground/50">Category</span>
-            <CategoryBadge
-              category={structuredRecord.category}
-              className="border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground"
-            />
-          </div>
-          <div className="rounded-md border border-primary-foreground/10 bg-primary-foreground/10 px-3 py-2 text-sm text-primary-foreground/80">
-            <span className="font-medium">ETA impact: </span>
+      <article className="triage-panel rounded-lg p-3">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <h4 className="mb-2 flex w-fit items-center gap-1.5 font-display text-sm font-semibold">
+              <CheckCircle2 className="h-3.5 w-3.5 text-accent" />
+              Structured Record
+            </h4>
+          </TooltipTrigger>
+          <TooltipContent>Normalized, machine-readable fields.</TooltipContent>
+        </Tooltip>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+          <SeverityBadge severity={structuredRecord.severity} />
+          <CategoryBadge
+            category={structuredRecord.category}
+            className="border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground"
+          />
+          <Separator orientation="vertical" className="h-4 bg-primary-foreground/20" />
+          <span className="text-xs text-primary-foreground/70">
+            <span className="text-primary-foreground/50">ETA: </span>
             {structuredRecord.etaImpact}
-          </div>
+          </span>
         </div>
       </article>
 
       {/* Card 2 — Action plan */}
-      <article className="triage-panel rounded-lg p-4">
-        <div className="mb-3">
-          <h4 className="flex items-center gap-2 font-display text-base font-semibold">
-            <FileText className="h-4 w-4 text-accent" />
-            Action Plan
-          </h4>
-          <p className="mt-1 text-xs text-primary-foreground/50">
-            Internal steps for the operations team.
-          </p>
-        </div>
+      <article className="triage-panel rounded-lg p-3">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <h4 className="mb-2 flex w-fit items-center gap-1.5 font-display text-sm font-semibold">
+              <FileText className="h-3.5 w-3.5 text-accent" />
+              Action Plan
+            </h4>
+          </TooltipTrigger>
+          <TooltipContent>Internal steps for the operations team.</TooltipContent>
+        </Tooltip>
         <Markdown content={actionPlan} />
       </article>
 
       {/* Card 3 — Customer notification */}
-      <article className="triage-panel rounded-lg p-4">
-        <div className="mb-3">
-          <h4 className="flex items-center gap-2 font-display text-base font-semibold">
-            <MessageSquare className="h-4 w-4 text-accent" />
-            Customer Notification
-          </h4>
-          <p className="mt-1 text-xs text-primary-foreground/50">
-            Outbound SMS shown to the customer.
-          </p>
+      <article className="triage-panel rounded-lg p-3">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <h4 className="mb-2 flex w-fit items-center gap-1.5 font-display text-sm font-semibold">
+              <MessageSquare className="h-3.5 w-3.5 text-accent" />
+              Customer Notification
+            </h4>
+          </TooltipTrigger>
+          <TooltipContent>Outbound SMS shown to the customer.</TooltipContent>
+        </Tooltip>
+        <div className="rounded-md border border-primary-foreground/10 bg-primary-foreground/10 px-3 py-2 text-sm leading-relaxed text-primary-foreground/80">
+          {customerNotification}
         </div>
-          <div className="rounded-md border border-primary-foreground/10 bg-primary-foreground/10 px-3 py-2 text-sm leading-relaxed text-primary-foreground/80">
-            {customerNotification}
-          </div>
       </article>
 
       <div className="flex items-center gap-2">

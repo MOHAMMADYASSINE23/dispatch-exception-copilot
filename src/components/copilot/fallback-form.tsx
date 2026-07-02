@@ -91,18 +91,20 @@ export function FallbackForm({
   }
 
   return (
-    <section className="triage-panel rounded-lg p-4 text-primary-foreground">
-      <div className="mb-4">
-        <h3 className="flex items-center gap-2 font-display text-base font-semibold">
-          <AlertTriangle className="h-4 w-4 text-warning" />
-          Manual Triage
-        </h3>
-        <p className="mt-1 text-sm text-primary-foreground/60">
+    <section className="triage-panel rounded-lg p-3 text-primary-foreground">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <h3 className="mb-3 flex w-fit items-center gap-1.5 font-display text-sm font-semibold">
+            <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+            Manual Triage
+          </h3>
+        </TooltipTrigger>
+        <TooltipContent>
           AI failed. The state machine still validates the execution.
-        </p>
-      </div>
+        </TooltipContent>
+      </Tooltip>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="fallback-severity" className="text-primary-foreground/75">
@@ -156,7 +158,7 @@ export function FallbackForm({
             placeholder="1. Dispatch backup vehicle…"
             value={actionPlan}
             onChange={(event) => setActionPlan(event.target.value)}
-            className="console-field min-h-[104px] focus-visible:ring-accent"
+            className="console-field min-h-[88px] focus-visible:ring-accent"
           />
         </div>
 

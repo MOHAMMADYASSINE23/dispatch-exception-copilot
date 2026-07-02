@@ -104,32 +104,26 @@ export function CopilotPanel({ onExecuted }: { onExecuted: () => void }) {
 
   return (
     <section className="console-panel flex h-full min-h-[720px] flex-col overflow-hidden rounded-xl motion-safe:animate-panel-in">
-      <div className="border-b border-primary-foreground/10 p-5">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-md border border-primary-foreground/10 bg-primary-foreground/10 text-accent shadow-[0_0_0_1px_hsl(var(--accent)_/_0.12)]">
-              <Bot className="h-4 w-4" />
+      <div className="border-b border-primary-foreground/10 px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-7 w-7 items-center justify-center rounded-md border border-primary-foreground/10 bg-primary-foreground/10 text-accent shadow-[0_0_0_1px_hsl(var(--accent)_/_0.12)]">
+              <Bot className="h-3.5 w-3.5" />
             </span>
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-primary-foreground/50">
-                Triage console
-              </p>
-              <h2 className="font-display text-xl font-semibold tracking-[-0.02em] text-primary-foreground">
-                Exception CoPilot
-              </h2>
-            </div>
+            <h2 className="font-display text-base font-semibold tracking-[-0.02em] text-primary-foreground">
+              Exception CoPilot
+            </h2>
           </div>
-          <span className="rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-accent">
+          <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-accent">
             Mock AI
           </span>
         </div>
-        <div className="trace-line h-px opacity-60 motion-safe:animate-[trace-flow_1.8s_linear_infinite]" />
       </div>
 
-      <div className="flex-1 space-y-5 overflow-y-auto p-5">
+      <div className="flex-1 space-y-4 overflow-y-auto p-4">
         {/* Composer */}
         {showComposer && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="space-y-1.5">
               <Label
                 htmlFor="shipment-select"
@@ -141,7 +135,11 @@ export function CopilotPanel({ onExecuted }: { onExecuted: () => void }) {
                 value={selectedShipmentId ?? undefined}
                 onValueChange={selectShipment}
               >
-                <SelectTrigger id="shipment-select" className="console-field">
+                <SelectTrigger
+                  id="shipment-select"
+                  className="console-field"
+                  autoFocus
+                >
                   <SelectValue placeholder="Select an active shipment" />
                 </SelectTrigger>
                 <SelectContent>
@@ -161,51 +159,60 @@ export function CopilotPanel({ onExecuted }: { onExecuted: () => void }) {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="raw-input" className="text-primary-foreground/75">
-                Courier update
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="raw-input" className="text-primary-foreground/75">
+                  Courier update
+                </Label>
+                <span className="text-[10px] text-primary-foreground/40">
+                  ⌘⏎ to analyze
+                </span>
+              </div>
               <Textarea
                 id="raw-input"
                 placeholder="e.g. el van 3etlit 3a tari2 Zahle, battery mfassakha…"
                 value={rawInput}
                 onChange={(event) => setRawInput(event.target.value)}
-                className="console-field min-h-[160px] resize-y leading-relaxed shadow-[0_1px_0_hsl(42_45%_96%_/_0.06)_inset] focus-visible:ring-accent"
+                onKeyDown={(event) => {
+                  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                    event.preventDefault();
+                    handleAnalyze();
+                  }
+                }}
+                className="console-field min-h-[112px] resize-y leading-relaxed shadow-[0_1px_0_hsl(42_45%_96%_/_0.06)_inset] focus-visible:ring-accent"
               />
             </div>
 
-            <div className="space-y-2">
-              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary-foreground/50">
-                Sample signal
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {SAMPLE_PROMPTS.map((sample, index) => (
-                  <Tooltip key={sample}>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={() => setRawInput(sample)}
-                        className="rounded-full border border-primary-foreground/10 bg-primary-foreground/10 px-3 py-1.5 text-left text-xs font-medium text-primary-foreground/70 transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-primary-foreground"
-                      >
-                        {index === 0 && "Vehicle"}
-                        {index === 1 && "Customer"}
-                        {index === 2 && "Weather"}
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {index === 0 && "Load a vehicle-breakdown example to speed up triage."}
-                      {index === 1 && "Load a customer-absence example for a missed delivery."}
-                      {index === 2 && "Load a weather-delay example for route disruption."}
-                    </TooltipContent>
-                  </Tooltip>
-                ))}
-              </div>
-              <p className="text-xs text-primary-foreground/50">
-                Include{" "}
-                <code className="rounded bg-primary-foreground/10 px-1 py-0.5 text-primary-foreground/80">
-                  fail
-                </code>{" "}
-                to enter manual fallback.
-              </p>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {SAMPLE_PROMPTS.map((sample, index) => (
+                <Tooltip key={sample}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => setRawInput(sample)}
+                      className="rounded-full border border-primary-foreground/10 bg-primary-foreground/10 px-2.5 py-1 text-left text-[11px] font-medium text-primary-foreground/70 transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-primary-foreground"
+                    >
+                      {index === 0 && "Vehicle"}
+                      {index === 1 && "Customer"}
+                      {index === 2 && "Weather"}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {index === 0 && "Load a vehicle-breakdown example to speed up triage."}
+                    {index === 1 && "Load a customer-absence example for a missed delivery."}
+                    {index === 2 && "Load a weather-delay example for route disruption."}
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="cursor-help rounded-full border border-primary-foreground/10 bg-primary-foreground/5 px-2 py-1 text-[11px] font-medium text-primary-foreground/40">
+                    fail →
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Type &quot;fail&quot; anywhere in the update to simulate an AI failure and enter manual fallback.
+                </TooltipContent>
+              </Tooltip>
             </div>
 
             <Tooltip>
