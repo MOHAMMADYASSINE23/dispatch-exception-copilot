@@ -4,13 +4,18 @@ import { useMemo, useState } from "react";
 import { Bot, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
-import { ActiveShipmentList } from "@/components/copilot/active-shipment-list";
 import { AnalyzeSkeleton } from "@/components/copilot/analyze-skeleton";
 import { FallbackForm } from "@/components/copilot/fallback-form";
-import { JsonContractPanel } from "@/components/copilot/json-contract-panel";
 import { TriageCards } from "@/components/copilot/triage-cards";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
@@ -115,130 +120,136 @@ export function CopilotPanel({ onExecuted }: { onExecuted: () => void }) {
         </div>
       </div>
 
-      <div className="grid flex-1 gap-4 overflow-y-auto p-4 xl:grid-cols-[200px_minmax(0,1fr)_260px]">
-        {/* Column 1 — shipment picker */}
-        <ActiveShipmentList
-          shipments={eligibleShipments}
-          selectedShipmentId={selectedShipmentId}
-          onSelect={selectShipment}
-        />
+      <div className="flex-1 space-y-4 overflow-y-auto p-4">
+        {/* Composer */}
+        {showComposer && (
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="shipment-select"
+                className="text-primary-foreground/75"
+              >
+                Shipment
+              </Label>
+              <Select
+                value={selectedShipmentId ?? undefined}
+                onValueChange={selectShipment}
+              >
+                <SelectTrigger
+                  id="shipment-select"
+                  className="console-field"
+                  autoFocus
+                >
+                  <SelectValue placeholder="Select an active shipment" />
+                </SelectTrigger>
+                <SelectContent>
+                  {eligibleShipments.length === 0 && (
+                    <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                      No eligible shipments.
+                    </div>
+                  )}
+                  {eligibleShipments.map((shipment) => (
+                    <SelectItem key={shipment.id} value={shipment.id}>
+                      {shipment.trackingNumber} — {shipment.customerName} (
+                      {shipment.destinationCity})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-        {/* Column 2 — composer / output */}
-        <div className="space-y-4">
-          {/* Composer */}
-          {showComposer && (
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-primary-foreground/75">
-                  {selectedShipment
-                    ? `Triaging ${selectedShipment.trackingNumber}`
-                    : "No shipment selected"}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="raw-input" className="text-primary-foreground/75">
+                  Courier update
                 </Label>
-                {!selectedShipment && (
-                  <p className="text-xs text-primary-foreground/50">
-                    Pick a shipment from the list to attach this update to.
-                  </p>
-                )}
+                <span className="text-[10px] text-primary-foreground/40">
+                  ⌘⏎ to analyze
+                </span>
               </div>
+              <Textarea
+                id="raw-input"
+                placeholder="e.g. el van 3etlit 3a tari2 Zahle, battery mfassakha…"
+                value={rawInput}
+                onChange={(event) => setRawInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                    event.preventDefault();
+                    handleAnalyze();
+                  }
+                }}
+                className="console-field min-h-[112px] resize-y leading-relaxed shadow-[0_1px_0_hsl(42_45%_96%_/_0.06)_inset] focus-visible:ring-accent"
+              />
+            </div>
 
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="raw-input" className="text-primary-foreground/75">
-                    Courier update
-                  </Label>
-                  <span className="text-[10px] text-primary-foreground/40">
-                    ⌘⏎ to analyze
-                  </span>
-                </div>
-                <Textarea
-                  id="raw-input"
-                  placeholder="e.g. el van 3etlit 3a tari2 Zahle, battery mfassakha…"
-                  value={rawInput}
-                  onChange={(event) => setRawInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-                      event.preventDefault();
-                      handleAnalyze();
-                    }
-                  }}
-                  className="console-field min-h-[112px] resize-y leading-relaxed shadow-[0_1px_0_hsl(42_45%_96%_/_0.06)_inset] focus-visible:ring-accent"
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center gap-1.5">
-                {SAMPLE_PROMPTS.map((sample, index) => (
-                  <Tooltip key={sample}>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={() => setRawInput(sample)}
-                        className="rounded-full border border-primary-foreground/10 bg-primary-foreground/10 px-2.5 py-1 text-left text-[11px] font-medium text-primary-foreground/70 transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-primary-foreground"
-                      >
-                        {index === 0 && "Vehicle"}
-                        {index === 1 && "Customer"}
-                        {index === 2 && "Weather"}
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {index === 0 && "Load a vehicle-breakdown example to speed up triage."}
-                      {index === 1 && "Load a customer-absence example for a missed delivery."}
-                      {index === 2 && "Load a weather-delay example for route disruption."}
-                    </TooltipContent>
-                  </Tooltip>
-                ))}
-                <Tooltip>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {SAMPLE_PROMPTS.map((sample, index) => (
+                <Tooltip key={sample}>
                   <TooltipTrigger asChild>
-                    <span className="cursor-help rounded-full border border-primary-foreground/10 bg-primary-foreground/5 px-2 py-1 text-[11px] font-medium text-primary-foreground/40">
-                      fail →
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setRawInput(sample)}
+                      className="rounded-full border border-primary-foreground/10 bg-primary-foreground/10 px-2.5 py-1 text-left text-[11px] font-medium text-primary-foreground/70 transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-primary-foreground"
+                    >
+                      {index === 0 && "Vehicle"}
+                      {index === 1 && "Customer"}
+                      {index === 2 && "Weather"}
+                    </button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    Type &quot;fail&quot; anywhere in the update to simulate an AI failure and enter manual fallback.
+                    {index === 0 && "Load a vehicle-breakdown example to speed up triage."}
+                    {index === 1 && "Load a customer-absence example for a missed delivery."}
+                    {index === 2 && "Load a weather-delay example for route disruption."}
                   </TooltipContent>
                 </Tooltip>
-              </div>
-
+              ))}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
-                    onClick={handleAnalyze}
-                    disabled={isProcessing}
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    Analyze
-                  </Button>
+                  <span className="cursor-help rounded-full border border-primary-foreground/10 bg-primary-foreground/5 px-2 py-1 text-[11px] font-medium text-primary-foreground/40">
+                    fail →
+                  </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  Analyze the selected shipment note and generate a structured exception record, action plan, and customer message.
+                  Type &quot;fail&quot; anywhere in the update to simulate an AI failure and enter manual fallback.
                 </TooltipContent>
               </Tooltip>
             </div>
-          )}
 
-          {/* Loading */}
-          {isProcessing && <AnalyzeSkeleton />}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+                  onClick={handleAnalyze}
+                  disabled={isProcessing}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Analyze
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Analyze the selected shipment note and generate a structured exception record, action plan, and customer message.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
 
-          {/* AI result */}
-          {!isProcessing && activeTriage && (
-            <TriageCards draft={activeTriage} onExecuted={handleExecuted} />
-          )}
+        {/* Loading */}
+        {isProcessing && <AnalyzeSkeleton />}
 
-          {/* Fallback */}
-          {!isProcessing && isFallbackMode && !activeTriage && selectedShipment && (
-            <FallbackForm
-              shipmentId={selectedShipment.id}
-              trackingNumber={selectedShipment.trackingNumber}
-              rawInput={rawInput}
-              onExecuted={handleExecuted}
-            />
-          )}
-        </div>
+        {/* AI result */}
+        {!isProcessing && activeTriage && (
+          <TriageCards draft={activeTriage} onExecuted={handleExecuted} />
+        )}
 
-        {/* Column 3 — strict JSON contract */}
-        <div>
-          <JsonContractPanel draft={activeTriage} />
-        </div>
+        {/* Fallback */}
+        {!isProcessing && isFallbackMode && !activeTriage && selectedShipment && (
+          <FallbackForm
+            shipmentId={selectedShipment.id}
+            trackingNumber={selectedShipment.trackingNumber}
+            rawInput={rawInput}
+            onExecuted={handleExecuted}
+          />
+        )}
       </div>
     </section>
   );

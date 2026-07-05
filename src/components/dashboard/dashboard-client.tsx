@@ -108,7 +108,7 @@ export function DashboardClient({
   );
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(560px,1.45fr)]">
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.58fr)_minmax(390px,0.92fr)]">
       {/* Left column — dashboard */}
       <section className="space-y-5 motion-safe:animate-panel-in">
         <div className="control-panel rounded-xl p-4 md:p-5">
