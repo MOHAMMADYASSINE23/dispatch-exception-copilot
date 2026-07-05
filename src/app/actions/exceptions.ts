@@ -21,6 +21,8 @@ import {
 
 type CreateExceptionInput = z.infer<typeof createExceptionInputSchema>;
 
+const ACTOR = "Dispatcher_System";
+
 function isHaltingSeverity(severity: Severity): boolean {
   return severity === Severity.HIGH || severity === Severity.CRITICAL;
 }
@@ -92,14 +94,40 @@ export async function createExceptionFromTriage(
         },
       });
 
+      // Rule C — audit the exception creation.
+      await tx.auditLog.create({
+        data: {
+          exceptionId: exception.id,
+          entityType: "EXCEPTION",
+          entityId: exception.id,
+          action: "EXCEPTION_CREATED",
+          oldState: null,
+          newState: `${exception.resolved ? "resolved" : "unresolved"} (${severity}/${category})`,
+          changedBy: ACTOR,
+        },
+      });
 
       // Rule B — HIGH/CRITICAL halts the parent shipment.
       if (isHaltingSeverity(severity) && shipment.status !== ShipmentStatus.HALTED) {
+        const previousStatus = shipment.status;
+
         await tx.shipment.update({
           where: { id: shipmentId },
           data: { status: ShipmentStatus.HALTED },
         });
 
+        // Rule C — audit the forced shipment transition.
+        await tx.auditLog.create({
+          data: {
+            exceptionId: exception.id,
+            entityType: "SHIPMENT",
+            entityId: shipmentId,
+            action: "AUTO_HALT",
+            oldState: previousStatus,
+            newState: ShipmentStatus.HALTED,
+            changedBy: ACTOR,
+          },
+        });
       }
 
       return exception;
@@ -174,6 +202,18 @@ export async function updateExceptionResolution(
         data: { resolved },
       });
 
+      // Rule C — audit the exception transition.
+      await tx.auditLog.create({
+        data: {
+          exceptionId,
+          entityType: "EXCEPTION",
+          entityId: exceptionId,
+          action: "STATUS_CHANGE",
+          oldState: exception.resolved ? "resolved" : "unresolved",
+          newState: resolved ? "resolved" : "unresolved",
+          changedBy: ACTOR,
+        },
+      });
 
       // Auto-release a halted shipment once it has no more open exceptions.
       if (resolved) {
@@ -193,6 +233,17 @@ export async function updateExceptionResolution(
             data: { status: ShipmentStatus.IN_TRANSIT },
           });
 
+          await tx.auditLog.create({
+            data: {
+              exceptionId,
+              entityType: "SHIPMENT",
+              entityId: exception.shipmentId,
+              action: "AUTO_RELEASE",
+              oldState: ShipmentStatus.HALTED,
+              newState: ShipmentStatus.IN_TRANSIT,
+              changedBy: ACTOR,
+            },
+          });
         }
       }
 

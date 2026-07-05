@@ -62,6 +62,17 @@ export interface ExceptionDTO {
   updatedAt: string;
 }
 
+export interface AuditLogDTO {
+  id: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  oldState: string | null;
+  newState: string;
+  changedBy: string;
+  createdAt: string;
+}
+
 /** Discriminated result type returned by server actions. */
 export type ActionResult<T = undefined> =
   | { ok: true; data: T }

@@ -41,15 +41,29 @@ model Shipment {
 }
 
 model Exception {
-  id               String   @id @default(uuid())
+  id               String     @id @default(uuid())
   shipmentId       String
-  shipment         Shipment @relation(fields: [shipmentId], references: [id])
+  shipment         Shipment   @relation(fields: [shipmentId], references: [id])
   severity         Severity
   category         Category
-  resolved         Boolean  @default(false)
+  resolved         Boolean    @default(false)
   rawInput         String
   actionPlan       String
   notificationText String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  logs             AuditLog[]
+}
+
+model AuditLog {
+  id          String     @id @default(uuid())
+  exceptionId String?
+  exception   Exception? @relation(fields: [exceptionId], references: [id])
+  entityType  String // "SHIPMENT" or "EXCEPTION"
+  entityId    String
+  action      String
+  oldState    String?
+  newState    String
+  changedBy   String     @default("Dispatcher_System")
+  createdAt   DateTime   @default(now())
 }

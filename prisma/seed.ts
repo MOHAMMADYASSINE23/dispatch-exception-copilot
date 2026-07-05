@@ -2,6 +2,8 @@ import { Category, PrismaClient, Severity, ShipmentStatus } from "@prisma/client
 
 const prisma = new PrismaClient();
 
+const ACTOR = "Dispatcher_System";
+
 interface SeedException {
   severity: Severity;
   category: Category;
@@ -99,7 +101,8 @@ const SHIPMENTS: SeedShipment[] = [
 
 async function main() {
   console.log("Resetting existing data…");
-  // Order matters because of FK constraints: exceptions -> shipments.
+  // Order matters because of FK constraints: logs -> exceptions -> shipments.
+  await prisma.auditLog.deleteMany();
   await prisma.exception.deleteMany();
   await prisma.shipment.deleteMany();
 
@@ -114,6 +117,17 @@ async function main() {
       data: shipmentData,
     });
 
+    // Audit the initial shipment creation so the activity feed is populated.
+    await prisma.auditLog.create({
+      data: {
+        entityType: "SHIPMENT",
+        entityId: shipment.id,
+        action: "SHIPMENT_CREATED",
+        oldState: null,
+        newState: shipment.status,
+        changedBy: ACTOR,
+      },
+    });
 
     for (const exceptionSeed of exceptions ?? []) {
       const exception = await prisma.exception.create({
@@ -128,6 +142,18 @@ async function main() {
         },
       });
       exceptionCount += 1;
+
+      await prisma.auditLog.create({
+        data: {
+          exceptionId: exception.id,
+          entityType: "EXCEPTION",
+          entityId: exception.id,
+          action: "EXCEPTION_CREATED",
+          oldState: null,
+          newState: `${exception.resolved ? "resolved" : "unresolved"} (${exception.severity}/${exception.category})`,
+          changedBy: ACTOR,
+        },
+      });
     }
   }
 

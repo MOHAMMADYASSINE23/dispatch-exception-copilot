@@ -6,10 +6,13 @@ import { prisma } from "@/lib/db";
 import {
   ShipmentStatus,
   type ActionResult,
+  type AuditLogDTO,
   type ShipmentDTO,
 } from "@/lib/types";
 import { describeValidationError, idSchema } from "@/lib/validation";
 import type { Exception, Shipment } from "@prisma/client";
+
+const ACTOR = "Dispatcher_System";
 
 // Sort shipments so the ones that need attention surface first.
 const STATUS_PRIORITY: Record<ShipmentStatus, number> = {
@@ -103,12 +106,25 @@ export async function markShipmentDelivered(
         );
       }
 
+      const previousStatus = shipment.status;
+
       const updated = await tx.shipment.update({
         where: { id: shipmentId },
         data: { status: ShipmentStatus.DELIVERED },
         include: { exceptions: true },
       });
 
+      // Rule C — audit the status transition.
+      await tx.auditLog.create({
+        data: {
+          entityType: "SHIPMENT",
+          entityId: shipmentId,
+          action: "STATUS_CHANGE",
+          oldState: previousStatus,
+          newState: ShipmentStatus.DELIVERED,
+          changedBy: ACTOR,
+        },
+      });
 
       return updated;
     });
@@ -157,12 +173,24 @@ export async function markShipmentInTransit(
         );
       }
 
+      const previousStatus = shipment.status;
+
       const updated = await tx.shipment.update({
         where: { id: shipmentId },
         data: { status: ShipmentStatus.IN_TRANSIT },
         include: { exceptions: true },
       });
 
+      await tx.auditLog.create({
+        data: {
+          entityType: "SHIPMENT",
+          entityId: shipmentId,
+          action: "STATUS_CHANGE",
+          oldState: previousStatus,
+          newState: ShipmentStatus.IN_TRANSIT,
+          changedBy: ACTOR,
+        },
+      });
 
       return updated;
     });
@@ -176,5 +204,24 @@ export async function markShipmentInTransit(
         error instanceof Error ? error.message : "Failed to update shipment.",
     };
   }
+}
+
+/** Recent audit-log entries for the "Activity" feed (newest first). */
+export async function getRecentAuditLogs(limit = 12): Promise<AuditLogDTO[]> {
+  const logs = await prisma.auditLog.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+
+  return logs.map((log) => ({
+    id: log.id,
+    entityType: log.entityType,
+    entityId: log.entityId,
+    action: log.action,
+    oldState: log.oldState,
+    newState: log.newState,
+    changedBy: log.changedBy,
+    createdAt: log.createdAt.toISOString(),
+  }));
 }
 

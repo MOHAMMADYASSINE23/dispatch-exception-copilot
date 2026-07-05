@@ -9,10 +9,15 @@ import {
   Truck,
 } from "lucide-react";
 
+import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { ShipmentTable } from "@/components/dashboard/shipment-table";
 import { CopilotPanel } from "@/components/copilot/copilot-panel";
-import { getShipments } from "@/app/actions/shipments";
-import { ShipmentStatus, type ShipmentDTO } from "@/lib/types";
+import { getRecentAuditLogs, getShipments } from "@/app/actions/shipments";
+import {
+  ShipmentStatus,
+  type AuditLogDTO,
+  type ShipmentDTO,
+} from "@/lib/types";
 import { useDispatchStore } from "@/store/use-dispatch-store";
 import { cn } from "@/lib/utils";
 
@@ -50,11 +55,14 @@ function StatCard({
 
 export function DashboardClient({
   initialShipments,
+  initialLogs,
 }: {
   initialShipments: ShipmentDTO[];
+  initialLogs: AuditLogDTO[];
 }) {
   const shipments = useDispatchStore((state) => state.shipments);
   const setShipments = useDispatchStore((state) => state.setShipments);
+  const [logs, setLogs] = useState<AuditLogDTO[]>(initialLogs);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
@@ -65,8 +73,12 @@ export function DashboardClient({
   }, [initialShipments, setShipments]);
 
   const refresh = useCallback(async () => {
-    const nextShipments = await getShipments();
+    const [nextShipments, nextLogs] = await Promise.all([
+      getShipments(),
+      getRecentAuditLogs(),
+    ]);
     setShipments(nextShipments);
+    setLogs(nextLogs);
     setLastSynced(new Date());
   }, [setShipments]);
 
@@ -96,7 +108,7 @@ export function DashboardClient({
   );
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.58fr)_minmax(390px,0.92fr)]">
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(560px,1.45fr)]">
       {/* Left column — dashboard */}
       <section className="space-y-5 motion-safe:animate-panel-in">
         <div className="control-panel rounded-xl p-4 md:p-5">
@@ -146,6 +158,8 @@ export function DashboardClient({
         </div>
 
         <ShipmentTable shipments={displayShipments} onMutated={refresh} />
+
+        <ActivityFeed logs={logs} />
       </section>
 
       {/* Right column — CoPilot */}
