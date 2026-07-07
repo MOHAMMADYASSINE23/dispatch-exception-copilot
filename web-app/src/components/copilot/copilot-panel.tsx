@@ -32,7 +32,13 @@ const SAMPLE_PROMPTS = [
   "fi 3asfe w shté ktir 3a Tripoli, el tari2 ma2tou3",
 ];
 
-export function CopilotPanel({ onExecuted }: { onExecuted: () => void }) {
+export function CopilotPanel({
+  onExecuted,
+  aiLive,
+}: {
+  onExecuted: () => void;
+  aiLive: boolean;
+}) {
   const shipments = useDispatchStore((state) => state.shipments);
   const selectedShipmentId = useDispatchStore(
     (state) => state.selectedShipmentId,
@@ -115,7 +121,7 @@ export function CopilotPanel({ onExecuted }: { onExecuted: () => void }) {
             </h2>
           </div>
           <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-accent">
-            Mock AI
+            {aiLive ? "Live AI" : "Mock AI"}
           </span>
         </div>
       </div>

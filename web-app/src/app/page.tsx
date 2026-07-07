@@ -12,6 +12,10 @@ export default async function HomePage() {
     getRecentAuditLogs(),
   ]);
 
+  // Reflect whether the real AI service is wired (vs the built-in mock). This
+  // is read on the server; the seam in `mock-ai.ts` switches on the same env.
+  const aiLive = Boolean(process.env.AI_SERVICE_URL);
+
   return (
     <main className="ops-shell min-h-screen">
       <header className="ops-header sticky top-0 z-30 border-b border-primary/10">
@@ -45,7 +49,11 @@ export default async function HomePage() {
       </header>
 
       <div className="mx-auto max-w-[1440px] px-5 py-6 lg:px-7 lg:py-8">
-        <DashboardClient initialShipments={shipments} initialLogs={logs} />
+        <DashboardClient
+          initialShipments={shipments}
+          initialLogs={logs}
+          aiLive={aiLive}
+        />
       </div>
     </main>
   );

@@ -56,9 +56,11 @@ function StatCard({
 export function DashboardClient({
   initialShipments,
   initialLogs,
+  aiLive,
 }: {
   initialShipments: ShipmentDTO[];
   initialLogs: AuditLogDTO[];
+  aiLive: boolean;
 }) {
   const shipments = useDispatchStore((state) => state.shipments);
   const setShipments = useDispatchStore((state) => state.setShipments);
@@ -164,7 +166,7 @@ export function DashboardClient({
 
       {/* Right column — CoPilot */}
       <aside className="xl:sticky xl:top-24 xl:h-[calc(100vh-7rem)]">
-        <CopilotPanel onExecuted={refresh} />
+        <CopilotPanel onExecuted={refresh} aiLive={aiLive} />
       </aside>
     </div>
   );
