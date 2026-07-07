@@ -1,17 +1,21 @@
 import "server-only";
 
 import { Category, Severity, type AnalysisResult } from "@/lib/types";
+import { analyzeViaService } from "@/lib/ai-service-client";
 
 /**
- * Mock AI service for the Dispatch Exception CoPilot.
+ * AI analysis seam for the Dispatch Exception CoPilot.
  *
- * Simulates a slow, fallible LLM call that turns chaotic, real-world courier
- * updates (often written in Arabizi / mixed Arabic-English) into a strict,
- * structured record plus an action plan and a customer notification.
+ * `analyzeExceptionText` is the single contract the rest of the app depends on.
+ * When `AI_SERVICE_URL` is configured it delegates to the external AI service
+ * (`ai-service-client.ts`); otherwise it runs the local mock below — a slow,
+ * fallible simulation that turns chaotic, real-world courier updates (often
+ * written in Arabizi / mixed Arabic-English) into a strict, structured record
+ * plus an action plan and a customer notification.
  *
- * Replace this module with a real model call later — the public contract
- * (`analyzeExceptionText`) and the returned `AnalysisResult` shape are what the
- * rest of the app depends on.
+ * The mock stays as the default so local dev and CI are network-free. See
+ * `AI_INTEGRATION.md` for the wire contract and ADR-0007 for why the seam is
+ * shaped this way.
  */
 
 const SIMULATED_LATENCY_MS = 2500;
@@ -237,12 +241,27 @@ function buildCustomerNotification(
 /**
  * Analyse a raw, chaotic courier exception update.
  *
+ * Delegates to the external AI service when `AI_SERVICE_URL` is set, otherwise
+ * runs the local mock. The signature and returned `AnalysisResult` shape are
+ * the stable contract every caller depends on, regardless of the backend.
+ *
  * @param text       The dispatcher's raw input (any language / Arabizi).
  * @param shipmentId The shipment the exception belongs to (for traceability).
- * @throws Error     When the input contains the word "fail" — used to exercise
- *                   the UI's manual Fallback Mode.
+ * @throws Error     On any analysis failure (drives the UI's manual Fallback
+ *                   Mode). The mock throws deterministically on the word "fail".
  */
 export async function analyzeExceptionText(
+  text: string,
+  shipmentId: string,
+): Promise<AnalysisResult> {
+  if (process.env.AI_SERVICE_URL) {
+    return analyzeViaService(text, shipmentId, crypto.randomUUID());
+  }
+  return mockAnalyze(text, shipmentId);
+}
+
+/** Local, network-free simulation of the AI service. */
+async function mockAnalyze(
   text: string,
   shipmentId: string,
 ): Promise<AnalysisResult> {
