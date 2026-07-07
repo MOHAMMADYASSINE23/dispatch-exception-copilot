@@ -150,6 +150,26 @@ standalone Next.js build on port 3000.
    ```
    (or set `SEED_ON_START=true` on the service for an auto-seed attempt).
 
+## AI Integration
+
+The AI analysis runs as a **separate Python service** in [`ai-service/`](ai-service/)
+(FastAPI + OpenAI), implementing the HTTP contract in
+[AI_INTEGRATION.md](AI_INTEGRATION.md). Run it:
+
+```bash
+cd ai-service
+python3 -m venv .venv && source .venv/bin/activate   # first time only
+pip install -r requirements.txt                       # first time only
+cp .env.example .env                                  # set OPENAI_API_KEY + AI_SERVICE_API_KEY
+uvicorn app.main:app --reload --port 8000
+```
+
+It serves `POST /v1/exceptions:analyze` on http://localhost:8000 (docs at `/docs`,
+health at `/healthz`). Without an `OPENAI_API_KEY` it falls back to a deterministic
+keyword classifier, so it runs with no external dependencies. See
+[ai-service/README.md](ai-service/README.md) for the full contract, config, and
+how to point this app's `analyzeExceptionText` seam at it.
+
 ## Notes
 
 - The Prisma schema is intentionally fixed by the exercise. The AI's
