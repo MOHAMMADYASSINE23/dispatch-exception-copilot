@@ -169,6 +169,30 @@ health at `/healthz`). Without an `OPENAI_API_KEY` it falls back to a determinis
 keyword classifier, so it runs with no external dependencies. See
 [ai-service/README.md](ai-service/README.md) for the full contract, config, and
 how to point this app's `analyzeExceptionText` seam at it.
+## Testing
+
+```bash
+npm test                  # unit tests (mock AI classifier) — no DB needed
+npm run test:integration  # real state-machine test against Postgres
+```
+
+The integration test exercises Rules A/B/C end-to-end against a real
+database, so it needs `docker compose up -d db` (+ migrations applied)
+running locally first. It creates and deletes its own throwaway shipment —
+never point it at a production `DATABASE_URL`.
+
+CI (`.github/workflows/ci.yml`) runs both: a fast `lint-and-unit` job on
+every push, and an `integration` job with an ephemeral Postgres service
+container.
+
+## How this was built
+
+This project is a teaching artifact, and the full sequence of design
+decisions — why Server Actions instead of a separate API, why the state
+machine looks the way it does, why the AI is mocked behind a seam, why the
+testing/CI setup is split the way it is — is written up as a numbered
+decision log in [`docs/decisions/`](docs/decisions/README.md). Read it in
+order; it's structured as a build narrative, not a reference doc.
 
 ## Notes
 
@@ -177,4 +201,5 @@ how to point this app's `analyzeExceptionText` seam at it.
   rather than adding a column.
 - `src/lib/mock-ai.ts` is the single seam to swap in a real model later — the
   `analyzeExceptionText` contract and `AnalysisResult` shape are what the rest
-  of the app depends on.
+  of the app depends on. See [`AI_INTEGRATION.md`](AI_INTEGRATION.md) for the
+  full contract and integration checklist.
