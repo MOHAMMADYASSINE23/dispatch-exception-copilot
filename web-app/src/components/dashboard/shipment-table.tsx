@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronRight,
   PackageCheck,
+  Quote,
   Truck,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -226,44 +227,60 @@ export function ShipmentTable({
                   </TableCell>
                 </TableRow>
 
-                {isExpanded &&
-                  shipment.exceptions.map((exception) => (
-                    <TableRow
-                      key={exception.id}
-                      className="bg-secondary/50 hover:bg-secondary/70"
-                    >
-                      <TableCell />
-                      <TableCell colSpan={5} className="py-3">
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <SeverityBadge severity={exception.severity} />
-                            <CategoryBadge category={exception.category} />
-                            <ResolvedBadge resolved={exception.resolved} />
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(
-                                exception.createdAt,
-                              ).toLocaleString()}
-                            </span>
-                          </div>
-                          <p className="max-w-3xl text-xs italic leading-relaxed text-muted-foreground">
-                            &ldquo;{exception.rawInput}&rdquo;
-                          </p>
-                          {!exception.resolved && (
-                            <div className="flex gap-1.5">
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => handleResolve(exception.id)}
-                                disabled={isPending}
+                {isExpanded && hasExceptions && (
+                  <TableRow className="bg-muted/20 hover:bg-muted/20">
+                    <TableCell />
+                    <TableCell colSpan={5} className="py-2 pl-1 pr-3">
+                      <div className="artifact-panel divide-y divide-border/70 rounded-lg">
+                        {shipment.exceptions.map((exception) => (
+                          <div key={exception.id} className="p-3.5 first:pt-3 last:pb-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <SeverityBadge severity={exception.severity} />
+                                <CategoryBadge category={exception.category} />
+                                <ResolvedBadge resolved={exception.resolved} />
+                              </div>
+                              <time
+                                dateTime={exception.createdAt}
+                                className="text-[11px] font-medium tabular-nums text-muted-foreground/80"
                               >
-                                Resolve
-                              </Button>
+                                {new Date(exception.createdAt).toLocaleString(
+                                  undefined,
+                                  {
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                  },
+                                )}
+                              </time>
                             </div>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+
+                            <div className="mt-2.5 flex items-start gap-2 rounded-md border border-border/60 bg-background/70 px-3 py-2.5">
+                              <Quote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/35" />
+                              <p className="max-w-3xl text-[13px] leading-relaxed text-foreground/85">
+                                {exception.rawInput}
+                              </p>
+                            </div>
+
+                            {!exception.resolved && (
+                              <div className="mt-2.5 flex justify-end">
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => handleResolve(exception.id)}
+                                  disabled={isPending}
+                                >
+                                  Resolve
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
               </Fragment>
             );
           })}
