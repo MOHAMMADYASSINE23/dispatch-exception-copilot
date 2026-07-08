@@ -98,6 +98,10 @@ export async function analyzeViaService(
 ): Promise<AnalysisResult> {
   const baseUrl = process.env.AI_SERVICE_URL;
   if (!baseUrl) {
+    console.error("[ai-service-client] AI_SERVICE_URL is not configured.", {
+      shipmentId,
+      requestId,
+    });
     throw new Error("AI_SERVICE_URL is not configured.");
   }
 
@@ -111,6 +115,13 @@ export async function analyzeViaService(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs());
 
+  console.log("[ai-service-client] POST /v1/exceptions:analyze", {
+    baseUrl,
+    shipmentId,
+    requestId,
+    timeoutMs: timeoutMs(),
+  });
+
   let response: Response;
   try {
     response = await fetch(`${baseUrl}/v1/exceptions:analyze`, {
@@ -120,6 +131,12 @@ export async function analyzeViaService(
       signal: controller.signal,
     });
   } catch (err) {
+    console.error("[ai-service-client] fetch failed", {
+      shipmentId,
+      requestId,
+      baseUrl,
+      err,
+    });
     if (err instanceof Error && err.name === "AbortError") {
       throw new Error("AI service timed out. Switch to manual triage.");
     }
@@ -131,13 +148,35 @@ export async function analyzeViaService(
   let body: unknown;
   try {
     body = await response.json();
-  } catch {
+  } catch (err) {
+    console.error("[ai-service-client] response body is not valid JSON", {
+      shipmentId,
+      requestId,
+      status: response.status,
+      err,
+    });
     body = null;
   }
 
   if (!response.ok) {
+    console.error("[ai-service-client] AI service returned non-2xx", {
+      shipmentId,
+      requestId,
+      status: response.status,
+      body,
+    });
     throw new Error(errorMessageFrom(body, response.status));
   }
 
-  return parseAnalysisResult(body);
+  try {
+    return parseAnalysisResult(body);
+  } catch (err) {
+    console.error("[ai-service-client] response failed contract validation", {
+      shipmentId,
+      requestId,
+      body,
+      err,
+    });
+    throw err;
+  }
 }

@@ -39,6 +39,10 @@ export async function analyzeException(
     const analysis = await analyzeExceptionText(text, shipmentId);
     return { ok: true, data: analysis };
   } catch (error) {
+    console.error("[exceptions.analyzeException] AI analysis failed", {
+      shipmentId,
+      error,
+    });
     return {
       ok: false,
       error:
@@ -151,6 +155,10 @@ export async function createExceptionFromTriage(
       },
     };
   } catch (error) {
+    console.error("[exceptions.createExceptionFromTriage] failed", {
+      shipmentId: input.shipmentId,
+      error,
+    });
     return {
       ok: false,
       error:
@@ -268,6 +276,10 @@ export async function updateExceptionResolution(
       },
     };
   } catch (error) {
+    console.error("[exceptions.updateExceptionResolution] failed", {
+      exceptionId,
+      error,
+    });
     return {
       ok: false,
       error:

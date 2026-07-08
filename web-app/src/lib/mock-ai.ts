@@ -255,8 +255,16 @@ export async function analyzeExceptionText(
   shipmentId: string,
 ): Promise<AnalysisResult> {
   if (process.env.AI_SERVICE_URL) {
-    return analyzeViaService(text, shipmentId, crypto.randomUUID());
+    const requestId = crypto.randomUUID();
+    console.log("[mock-ai] routing to live AI service", { shipmentId, requestId });
+    try {
+      return await analyzeViaService(text, shipmentId, requestId);
+    } catch (err) {
+      console.error("[mock-ai] analyzeViaService threw", { shipmentId, requestId, err });
+      throw err;
+    }
   }
+  console.log("[mock-ai] routing to local mock (AI_SERVICE_URL not set)", { shipmentId });
   return mockAnalyze(text, shipmentId);
 }
 
@@ -270,11 +278,16 @@ async function mockAnalyze(
   const normalized = text.trim().toLowerCase();
 
   if (normalized.length === 0) {
+    console.error("[mock-ai] mockAnalyze rejected empty input", { shipmentId });
     throw new Error("Cannot analyze an empty update. Please describe the exception.");
   }
 
   // Deterministic failure hook so the demo can show the Fallback flow.
   if (normalized.includes("fail")) {
+    console.error("[mock-ai] mockAnalyze deterministic failure hook triggered", {
+      shipmentId,
+      text: normalized,
+    });
     throw new Error(
       `AI analysis service is unavailable for shipment ${shipmentId}. Switch to manual triage.`,
     );
