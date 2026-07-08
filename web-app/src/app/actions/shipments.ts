@@ -9,8 +9,12 @@ import {
   type AuditLogDTO,
   type ShipmentDTO,
 } from "@/lib/types";
-import { describeValidationError, idSchema } from "@/lib/validation";
-import type { Exception, Shipment } from "@prisma/client";
+import {
+  createShipmentInputSchema,
+  describeValidationError,
+  idSchema,
+} from "@/lib/validation";
+import { Prisma, type Exception, type Shipment } from "@prisma/client";
 
 const ACTOR = "Dispatcher_System";
 
@@ -65,6 +69,91 @@ export async function getShipments(): Promise<ShipmentDTO[]> {
         STATUS_PRIORITY[a.status] - STATUS_PRIORITY[b.status] ||
         b.updatedAt.localeCompare(a.updatedAt),
     );
+}
+
+// Unambiguous alphabet (no 0/O/1/I) so tracking numbers are easy to read aloud.
+const TRACKING_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+/** Mint a human-readable, reasonably-unique tracking number, e.g. `DXC-4F2A9`. */
+function generateTrackingNumber(): string {
+  const bytes = new Uint8Array(5);
+  crypto.getRandomValues(bytes);
+  const body = Array.from(
+    bytes,
+    (byte) => TRACKING_ALPHABET[byte % TRACKING_ALPHABET.length],
+  ).join("");
+  return `DXC-${body}`;
+}
+
+/**
+ * Create a new shipment. It enters the state machine at DISPATCHED and the
+ * creation is recorded in the audit log (Rule C). The tracking number is minted
+ * server-side; on the rare unique-constraint collision we retry a few times.
+ */
+export async function createShipment(input: {
+  customerName: string;
+  destinationCity: string;
+}): Promise<ActionResult<ShipmentDTO>> {
+  const parsed = createShipmentInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: describeValidationError(parsed.error) };
+  }
+  const { customerName, destinationCity } = parsed.data;
+
+  const MAX_ATTEMPTS = 5;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const trackingNumber = generateTrackingNumber();
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        const shipment = await tx.shipment.create({
+          data: {
+            trackingNumber,
+            customerName,
+            destinationCity,
+            status: ShipmentStatus.DISPATCHED,
+          },
+          include: { exceptions: true },
+        });
+
+        // Rule C — audit the creation.
+        await tx.auditLog.create({
+          data: {
+            entityType: "SHIPMENT",
+            entityId: shipment.id,
+            action: "CREATE",
+            oldState: null,
+            newState: ShipmentStatus.DISPATCHED,
+            changedBy: ACTOR,
+          },
+        });
+
+        return shipment;
+      });
+
+      revalidatePath("/");
+      return { ok: true, data: serializeShipment(result) };
+    } catch (error) {
+      // Retry only on a tracking-number collision; rethrow anything else.
+      const isCollision =
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002";
+      if (isCollision && attempt < MAX_ATTEMPTS) {
+        continue;
+      }
+      return {
+        ok: false,
+        error:
+          isCollision
+            ? "Could not assign a unique tracking number. Please try again."
+            : error instanceof Error
+              ? error.message
+              : "Failed to create shipment.",
+      };
+    }
+  }
+
+  // Unreachable in practice — the loop returns on success or final failure.
+  return { ok: false, error: "Failed to create shipment." };
 }
 
 /**

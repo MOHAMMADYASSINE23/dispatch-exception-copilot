@@ -14,6 +14,11 @@ import { Category, Severity } from "@/lib/types";
 
 export const idSchema = z.string().trim().min(1, "An id is required.");
 
+export const createShipmentInputSchema = z.object({
+  customerName: z.string().trim().min(1, "Customer name is required."),
+  destinationCity: z.string().trim().min(1, "Destination city is required."),
+});
+
 export const createExceptionInputSchema = z.object({
   shipmentId: idSchema,
   severity: z.nativeEnum(Severity),

@@ -44,9 +44,11 @@ function openExceptionCount(shipment: ShipmentDTO): number {
 export function ShipmentTable({
   shipments,
   onMutated,
+  highlightId,
 }: {
   shipments: ShipmentDTO[];
   onMutated: () => void;
+  highlightId?: string | null;
 }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [isPending, startTransition] = useTransition();
@@ -100,7 +102,7 @@ export function ShipmentTable({
   if (shipments.length === 0) {
     return (
       <div className="ops-panel flex h-40 items-center justify-center rounded-xl border-dashed text-sm text-muted-foreground">
-        No shipments yet. Seed the database to get started.
+        No shipments yet. Use “New shipment” above to add your first one.
       </div>
     );
   }
@@ -146,6 +148,7 @@ export function ShipmentTable({
                     "ledger-row",
                     shipment.status === ShipmentStatus.HALTED &&
                       "bg-destructive/10 hover:bg-destructive/15",
+                    shipment.id === highlightId && "row-flash",
                   )}
                 >
                   <TableCell className="pr-0">

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
+import { NewShipmentDialog } from "@/components/dashboard/new-shipment-dialog";
 import { ShipmentTable } from "@/components/dashboard/shipment-table";
 import { CopilotPanel } from "@/components/copilot/copilot-panel";
 import { getRecentAuditLogs, getShipments } from "@/app/actions/shipments";
@@ -67,6 +68,7 @@ export function DashboardClient({
   const [logs, setLogs] = useState<AuditLogDTO[]>(initialLogs);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
 
   // Hydrate the store from the server-rendered snapshot once on mount.
   useEffect(() => {
@@ -89,6 +91,16 @@ export function DashboardClient({
     const id = setInterval(refresh, POLL_INTERVAL_MS);
     return () => clearInterval(id);
   }, [refresh]);
+
+  // After creating a shipment, refresh the ledger and briefly highlight the row.
+  const handleShipmentCreated = useCallback(
+    async (shipmentId: string) => {
+      await refresh();
+      setHighlightId(shipmentId);
+      setTimeout(() => setHighlightId(null), 2200);
+    },
+    [refresh],
+  );
 
   // Use the server snapshot until the store has hydrated to avoid a flash.
   const displayShipments = hydrated ? shipments : initialShipments;
@@ -123,12 +135,15 @@ export function DashboardClient({
                 Shipments under control
               </h2>
             </div>
-            <span className="flex items-center gap-1.5 rounded-full border border-primary/10 bg-background/70 px-3 py-1.5 text-xs font-semibold text-muted-foreground">
-              <Activity className="h-3.5 w-3.5 text-success" />
-              {lastSynced
-                ? `Synced ${lastSynced.toLocaleTimeString()}`
-                : "Polling every 5s"}
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="flex items-center gap-1.5 rounded-full border border-primary/10 bg-background/70 px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+                <Activity className="h-3.5 w-3.5 text-success" />
+                {lastSynced
+                  ? `Synced ${lastSynced.toLocaleTimeString()}`
+                  : "Polling every 5s"}
+              </span>
+              <NewShipmentDialog onCreated={handleShipmentCreated} />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -159,7 +174,11 @@ export function DashboardClient({
           </div>
         </div>
 
-        <ShipmentTable shipments={displayShipments} onMutated={refresh} />
+        <ShipmentTable
+          shipments={displayShipments}
+          onMutated={refresh}
+          highlightId={highlightId}
+        />
 
         <ActivityFeed logs={logs} />
       </section>
