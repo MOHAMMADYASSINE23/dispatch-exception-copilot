@@ -61,15 +61,20 @@ src/
     db.ts, types.ts, utils.ts
   store/
     use-dispatch-store.ts  Zustand store
-Dockerfile, docker-compose.yml, docker-entrypoint.sh
+Dockerfile, docker-entrypoint.sh, railway.toml   Container + Railway deploy
 ```
+
+> This app is one of two services in the monorepo. The root
+> [`docker-compose.yml`](../docker-compose.yml) orchestrates it together with
+> the database and the [`ai-service`](../ai-service/); see the
+> [monorepo README](../README.md) and [integration guide](../docs/INTEGRATION.md).
 
 ## Local development
 
 ### 1. Start PostgreSQL
 
 ```bash
-docker compose up -d db
+docker compose up -d db      # run from the repo root (compose lives there)
 ```
 
 This exposes Postgres on `localhost:5433` (mapped to the container's 5432, to
@@ -122,8 +127,11 @@ audit-feed entries appear automatically.
 
 ### Full stack with compose
 
+The root [`docker-compose.yml`](../docker-compose.yml) builds and runs this app
+alongside Postgres and the `ai-service`. From the **repo root**:
+
 ```bash
-# Build + run app and database
+# Build + run db, ai-service, and this app together
 docker compose up --build
 
 # Seed the containerized database (one-off, uses the builder image)
@@ -152,12 +160,12 @@ standalone Next.js build on port 3000.
 
 ## AI Integration
 
-The AI analysis runs as a **separate Python service** in [`ai-service/`](ai-service/)
+The AI analysis runs as a **separate Python service** in [`../ai-service/`](../ai-service/)
 (FastAPI + OpenAI), implementing the HTTP contract in
 [AI_INTEGRATION.md](AI_INTEGRATION.md). Run it:
 
 ```bash
-cd ai-service
+cd ../ai-service
 python3 -m venv .venv && source .venv/bin/activate   # first time only
 pip install -r requirements.txt                       # first time only
 cp .env.example .env                                  # set OPENAI_API_KEY + AI_SERVICE_API_KEY
@@ -166,9 +174,14 @@ uvicorn app.main:app --reload --port 8000
 
 It serves `POST /v1/exceptions:analyze` on http://localhost:8000 (docs at `/docs`,
 health at `/healthz`). Without an `OPENAI_API_KEY` it falls back to a deterministic
-keyword classifier, so it runs with no external dependencies. See
-[ai-service/README.md](ai-service/README.md) for the full contract, config, and
-how to point this app's `analyzeExceptionText` seam at it.
+keyword classifier, so it runs with no external dependencies.
+
+To point this app at it, set `AI_SERVICE_URL` (and the matching
+`AI_SERVICE_API_KEY`) in [`.env`](.env.example) — the `analyzeExceptionText`
+seam then calls the service instead of the built-in mock. Leaving `AI_SERVICE_URL`
+unset keeps the mock, so local dev stays network-free. See
+[../ai-service/README.md](../ai-service/README.md) and
+[../docs/INTEGRATION.md](../docs/INTEGRATION.md) for the full contract and config.
 ## Testing
 
 ```bash
@@ -181,9 +194,10 @@ database, so it needs `docker compose up -d db` (+ migrations applied)
 running locally first. It creates and deletes its own throwaway shipment —
 never point it at a production `DATABASE_URL`.
 
-CI (`.github/workflows/ci.yml`) runs both: a fast `lint-and-unit` job on
-every push, and an `integration` job with an ephemeral Postgres service
-container.
+CI ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) runs both: a fast
+`web-app` job (lint + typecheck + unit) on every push, and a
+`web-app-integration` job with an ephemeral Postgres service container. A
+separate `ai-service` job runs the Python tests.
 
 ## How this was built
 
