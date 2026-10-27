@@ -67,7 +67,7 @@ Dockerfile, docker-entrypoint.sh, railway.toml   Container + Railway deploy
 > This app is one of two services in the monorepo. The root
 > [`docker-compose.yml`](../docker-compose.yml) orchestrates it together with
 > the database and the [`ai-service`](../ai-service/); see the
-> [monorepo README](../README.md) and [integration guide](../docs/INTEGRATION.md).
+> [monorepo README](../README.md) and [integration guide](AI_INTEGRATION.md).
 
 ## Local development
 
