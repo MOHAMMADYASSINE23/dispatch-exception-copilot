@@ -181,7 +181,7 @@ To point this app at it, set `AI_SERVICE_URL` (and the matching
 seam then calls the service instead of the built-in mock. Leaving `AI_SERVICE_URL`
 unset keeps the mock, so local dev stays network-free. See
 [../ai-service/README.md](../ai-service/README.md) and
-[../docs/INTEGRATION.md](../docs/INTEGRATION.md) for the full contract and config.
+[AI_INTEGRATION.md](AI_INTEGRATION.md) for the full contract and config.
 ## Testing
 
 ```bash
