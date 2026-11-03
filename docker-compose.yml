@@ -81,3 +81,5 @@ services:
 
 volumes:
   dispatch_pgdata:
+    # Keep using the existing database volume after renaming the repository folder.
+    name: se-ai-challenge_dispatch_pgdata
