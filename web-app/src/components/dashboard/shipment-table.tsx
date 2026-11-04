@@ -1,9 +1,12 @@
 "use client";
 
-import { Fragment, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 import {
   ChevronDown,
   ChevronRight,
+  Download,
+  RotateCcw,
+  Search,
   PackageCheck,
   Quote,
   Truck,
@@ -17,6 +20,14 @@ import {
   ShipmentStatusBadge,
 } from "@/components/dashboard/status-badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -35,8 +46,65 @@ import {
   markShipmentInTransit,
 } from "@/app/actions/shipments";
 import { updateExceptionResolution } from "@/app/actions/exceptions";
-import { ShipmentStatus, type ShipmentDTO } from "@/lib/types";
+import { Severity, ShipmentStatus, type ShipmentDTO } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+type StatusFilter = ShipmentStatus | "ALL";
+type SeverityFilter = Severity | "ALL";
+
+function csvCell(value: string | number): string {
+  const text = String(value);
+  // Prevent spreadsheet formulas when customer-provided text is opened in Excel.
+  const safeText = /^[\t\r ]*[=+\-@]/.test(text) ? `'${text}` : text;
+  return `"${safeText.replace(/"/g, '""')}"`;
+}
+
+function downloadShipmentsCsv(shipments: ShipmentDTO[]) {
+  const rows = [
+    [
+      "Tracking number",
+      "Customer",
+      "Destination",
+      "Status",
+      "Open exceptions",
+      "Exception severities",
+      "Exception categories",
+      "Created at (UTC)",
+      "Updated at (UTC)",
+    ],
+    ...shipments.map((shipment) => {
+      const openExceptions = shipment.exceptions.filter(
+        (exception) => !exception.resolved,
+      );
+
+      return [
+        shipment.trackingNumber,
+        shipment.customerName,
+        shipment.destinationCity,
+        shipment.status,
+        openExceptions.length,
+        [...new Set(openExceptions.map((exception) => exception.severity))].join(
+          "; ",
+        ),
+        [...new Set(openExceptions.map((exception) => exception.category))].join(
+          "; ",
+        ),
+        shipment.createdAt,
+        shipment.updatedAt,
+      ];
+    }),
+  ];
+
+  const csv = `\uFEFF${rows.map((row) => row.map(csvCell).join(",")).join("\r\n")}`;
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `dispatch-shipments-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 function openExceptionCount(shipment: ShipmentDTO): number {
   return shipment.exceptions.filter((exception) => !exception.resolved).length;
@@ -53,6 +121,55 @@ export function ShipmentTable({
 }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [isPending, startTransition] = useTransition();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("ALL");
+  const [openOnly, setOpenOnly] = useState(false);
+
+  const filteredShipments = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+
+    return shipments.filter((shipment) => {
+      const matchesSearch =
+        query.length === 0 ||
+        [
+          shipment.trackingNumber,
+          shipment.customerName,
+          shipment.destinationCity,
+          ...shipment.exceptions.flatMap((exception) => [
+            exception.rawInput,
+            exception.actionPlan,
+            exception.notificationText,
+          ]),
+        ].some((value) => value.toLocaleLowerCase().includes(query));
+      const matchesStatus =
+        statusFilter === "ALL" || shipment.status === statusFilter;
+      const matchesSeverity =
+        severityFilter === "ALL" ||
+        shipment.exceptions.some(
+          (exception) => exception.severity === severityFilter,
+        );
+      const matchesOpenOnly =
+        !openOnly || shipment.exceptions.some((exception) => !exception.resolved);
+
+      return (
+        matchesSearch && matchesStatus && matchesSeverity && matchesOpenOnly
+      );
+    });
+  }, [openOnly, search, severityFilter, shipments, statusFilter]);
+
+  const hasActiveFilters =
+    search.trim().length > 0 ||
+    statusFilter !== "ALL" ||
+    severityFilter !== "ALL" ||
+    openOnly;
+
+  function resetFilters() {
+    setSearch("");
+    setStatusFilter("ALL");
+    setSeverityFilter("ALL");
+    setOpenOnly(false);
+  }
 
   function toggle(id: string) {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -119,9 +236,100 @@ export function ShipmentTable({
             Active Shipments
           </h2>
         </div>
-        <span className="rounded-full border border-primary/10 bg-background/70 px-3 py-1 text-xs font-semibold text-muted-foreground">
-          {shipments.length} records
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            aria-live="polite"
+            className="rounded-full border border-primary/10 bg-background/70 px-3 py-1 text-xs font-semibold text-muted-foreground"
+          >
+            {filteredShipments.length === shipments.length
+              ? `${shipments.length} records`
+              : `${filteredShipments.length} of ${shipments.length} records`}
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => downloadShipmentsCsv(filteredShipments)}
+            disabled={filteredShipments.length === 0}
+            aria-label={`Export ${filteredShipments.length} filtered shipments as CSV`}
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export CSV
+          </Button>
+        </div>
+      </div>
+
+      <div
+        role="search"
+        aria-label="Filter shipment queue"
+        className="mb-3 grid gap-2 rounded-lg border border-primary/10 bg-background/45 p-3 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1.5fr)_minmax(145px,0.8fr)_minmax(145px,0.8fr)_auto_auto]"
+      >
+        <label className="relative block">
+          <span className="sr-only">Search shipments</span>
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Tracking, customer, city, exception…"
+            className="pl-9"
+          />
+        </label>
+
+        <Select
+          value={statusFilter}
+          onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+        >
+          <SelectTrigger aria-label="Filter by shipment status">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All statuses</SelectItem>
+            {Object.values(ShipmentStatus).map((status) => (
+              <SelectItem key={status} value={status}>
+                {status.replaceAll("_", " ")}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={severityFilter}
+          onValueChange={(value) => setSeverityFilter(value as SeverityFilter)}
+        >
+          <SelectTrigger aria-label="Filter by exception severity">
+            <SelectValue placeholder="All severities" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All severities</SelectItem>
+            {Object.values(Severity).map((severity) => (
+              <SelectItem key={severity} value={severity}>
+                {severity}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <label className="flex min-h-10 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground">
+          <input
+            type="checkbox"
+            checked={openOnly}
+            onChange={(event) => setOpenOnly(event.target.checked)}
+            className="h-4 w-4 accent-primary"
+          />
+          Open exceptions
+        </label>
+
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={resetFilters}
+          disabled={!hasActiveFilters}
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          Clear
+        </Button>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-primary/10 bg-background/55">
@@ -137,13 +345,27 @@ export function ShipmentTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-          {shipments.map((shipment) => {
-            const openCount = openExceptionCount(shipment);
-            const isExpanded = expanded[shipment.id];
-            const hasExceptions = shipment.exceptions.length > 0;
+            {filteredShipments.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-28 text-center">
+                  <div className="space-y-1">
+                    <p className="font-medium text-foreground">
+                      No shipments match these filters
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Try a different search or clear the active filters.
+                    </p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredShipments.map((shipment) => {
+                const openCount = openExceptionCount(shipment);
+                const isExpanded = expanded[shipment.id];
+                const hasExceptions = shipment.exceptions.length > 0;
 
-            return (
-              <Fragment key={shipment.id}>
+                return (
+                  <Fragment key={shipment.id}>
                 <TableRow
                   className={cn(
                     "ledger-row",
@@ -281,9 +503,10 @@ export function ShipmentTable({
                     </TableCell>
                   </TableRow>
                 )}
-              </Fragment>
-            );
-          })}
+                  </Fragment>
+                );
+              })
+            )}
           </TableBody>
         </Table>
       </div>
