@@ -109,7 +109,7 @@ export function CopilotPanel({
   const showComposer = !isProcessing && !activeTriage && !isFallbackMode;
 
   return (
-    <section className="console-panel flex h-full min-h-[720px] flex-col overflow-hidden rounded-xl motion-safe:animate-panel-in">
+    <section className="console-panel flex h-full min-h-[640px] flex-col overflow-hidden rounded-xl motion-safe:animate-panel-in xl:min-h-0">
       <div className="border-b border-primary-foreground/10 px-4 py-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
@@ -126,7 +126,7 @@ export function CopilotPanel({
         </div>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         {/* Composer */}
         {showComposer && (
           <div className="space-y-3">

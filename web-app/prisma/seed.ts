@@ -8,7 +8,7 @@ interface SeedException {
   severity: Severity;
   category: Category;
   resolved: boolean;
-  rawInput: string;
+  rawInput: "Example: a synthetic delivery exception for demonstration.",
   actionPlan: string;
   notificationText: string;
 }
@@ -24,29 +24,28 @@ interface SeedShipment {
 // Lean sample set that still covers all dashboard/state-machine use-cases.
 const SHIPMENTS: SeedShipment[] = [
   {
-    trackingNumber: "LB-240001",
-    customerName: "Ahmad Khalil",
-    destinationCity: "Beirut",
+    trackingNumber: "DEMO-240001",
+    customerName: "Demo Customer A",
+    destinationCity: "Sample District 1",
     status: ShipmentStatus.DISPATCHED,
   },
   {
-    trackingNumber: "LB-240002",
-    customerName: "Elie Saad",
-    destinationCity: "Jounieh",
+    trackingNumber: "DEMO-240002",
+    customerName: "Demo Customer B",
+    destinationCity: "Sample District 2",
     status: ShipmentStatus.IN_TRANSIT,
   },
   {
-    trackingNumber: "LB-240003",
-    customerName: "Rami Haddad",
-    destinationCity: "Zahle",
+    trackingNumber: "DEMO-240003",
+    customerName: "Demo Customer C",
+    destinationCity: "Sample District 3",
     status: ShipmentStatus.HALTED,
     exceptions: [
       {
         severity: Severity.HIGH,
         category: Category.VEHICLE_ISSUE,
         resolved: false,
-        rawInput:
-          "el van 3etlit 3a tari2 Zahle, battery mfassakha w ma fini kammel",
+        rawInput: "Example: a synthetic delivery exception for demonstration.",
         actionPlan:
           "**Recommended Action Plan — Vehicle Issue (HIGH)**\n\n1. Dispatch the nearest backup vehicle to recover the parcels on board.\n2. Move the driver's remaining stops to the relief route.\n3. Log the vehicle fault with the fleet team for inspection.\n\n**ETA impact:** +2–4 hrs (same-day at risk)",
         notificationText:
@@ -55,17 +54,16 @@ const SHIPMENTS: SeedShipment[] = [
     ],
   },
   {
-    trackingNumber: "LB-240004",
-    customerName: "Nour Mansour",
-    destinationCity: "Tripoli",
+    trackingNumber: "DEMO-240004",
+    customerName: "Demo Customer D",
+    destinationCity: "Sample District 4",
     status: ShipmentStatus.HALTED,
     exceptions: [
       {
         severity: Severity.CRITICAL,
         category: Category.WEATHER,
         resolved: false,
-        rawInput:
-          "fi 3asfe w shté ktir 3a Tripoli, el tari2 ma2tou3 w khatar 3al driver",
+        rawInput: "Example: a synthetic delivery exception for demonstration.",
         actionPlan:
           "**Recommended Action Plan — Weather Disruption (CRITICAL)**\n\n1. Pause the affected route until the road/weather advisory clears.\n2. Re-sequence safe stops and shift exposed stops to the next slot.\n3. Notify impacted customers proactively about the delay.\n\n**ETA impact:** Next-day reschedule likely",
         notificationText:
@@ -74,16 +72,16 @@ const SHIPMENTS: SeedShipment[] = [
     ],
   },
   {
-    trackingNumber: "LB-240005",
-    customerName: "Maya Aoun",
-    destinationCity: "Saida",
+    trackingNumber: "DEMO-240005",
+    customerName: "Demo Customer E",
+    destinationCity: "Sample District 5",
     status: ShipmentStatus.IN_TRANSIT,
     exceptions: [
       {
         severity: Severity.LOW,
         category: Category.CUSTOMER_ABSENT,
         resolved: true,
-        rawInput: "zboun ma kén mawjoud awwal marra, rje3na ba3den w sallamna",
+        rawInput: "Example: a synthetic delivery exception for demonstration.",
         actionPlan:
           "**Recommended Action Plan — Customer Absent (LOW)**\n\n1. Attempt a call-back to the customer on the registered number.\n2. Send the rescheduling SMS with a self-service delivery window link.\n3. Hold the parcel at the local hub for one (1) retry before return.\n\n**ETA impact:** +30–60 min (minor delay)",
         notificationText:
@@ -92,19 +90,21 @@ const SHIPMENTS: SeedShipment[] = [
     ],
   },
   {
-    trackingNumber: "LB-240006",
-    customerName: "Hassan Fakih",
-    destinationCity: "Tyre",
+    trackingNumber: "DEMO-240006",
+    customerName: "Demo Customer F",
+    destinationCity: "Sample District 6",
     status: ShipmentStatus.DELIVERED,
   },
 ];
 
 async function main() {
-  console.log("Resetting existing data…");
-  // Order matters because of FK constraints: logs -> exceptions -> shipments.
-  await prisma.auditLog.deleteMany();
-  await prisma.exception.deleteMany();
-  await prisma.shipment.deleteMany();
+  const existingShipments = await prisma.shipment.count();
+  if (existingShipments > 0) {
+    console.log(`Found ${existingShipments} existing shipments; leaving production data unchanged.`);
+    return;
+  }
+
+  console.log("Database is empty; inserting sample dispatch data…");
 
   console.log(`Seeding ${SHIPMENTS.length} shipments…`);
 
@@ -136,7 +136,7 @@ async function main() {
           severity: exceptionSeed.severity,
           category: exceptionSeed.category,
           resolved: exceptionSeed.resolved,
-          rawInput: exceptionSeed.rawInput,
+          rawInput: "Example: a synthetic delivery exception for demonstration.",
           actionPlan: exceptionSeed.actionPlan,
           notificationText: exceptionSeed.notificationText,
         },
