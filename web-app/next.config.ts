@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Produce a minimal, self-contained server bundle for Docker / Railway.
-  output: "standalone",
+  // Produce a standalone server bundle for Docker hosts. Vercel builds its own
+  // deployment output, so leave standalone mode off there.
+  output: process.env.VERCEL ? undefined : "standalone",
   outputFileTracingRoot: process.cwd(),
   reactStrictMode: true,
 };
