@@ -57,6 +57,7 @@ services:
     environment:
       # Inside the compose network the database host is the service name "db".
       DATABASE_URL: "postgresql://copilot:copilot@db:5432/dispatch?schema=public"
+      DIRECT_URL: "postgresql://copilot:copilot@db:5432/dispatch?schema=public"
       NODE_ENV: production
       # Point the seam at the AI service; the shared secret must match above.
       AI_SERVICE_URL: "http://ai-service:8000"
