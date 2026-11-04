@@ -4,6 +4,7 @@ import { Fragment, useMemo, useState, useTransition } from "react";
 import {
   ChevronDown,
   ChevronRight,
+  Clock3,
   Download,
   RotateCcw,
   Search,
@@ -47,6 +48,10 @@ import {
 } from "@/app/actions/shipments";
 import { updateExceptionResolution } from "@/app/actions/exceptions";
 import { Severity, ShipmentStatus, type ShipmentDTO } from "@/lib/types";
+import {
+  sortShipments,
+  type ShipmentSortMode,
+} from "@/lib/shipment-sort";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = ShipmentStatus | "ALL";
@@ -110,6 +115,30 @@ function openExceptionCount(shipment: ShipmentDTO): number {
   return shipment.exceptions.filter((exception) => !exception.resolved).length;
 }
 
+function highestOpenSeverity(shipment: ShipmentDTO): Severity | null {
+  const openSeverities = shipment.exceptions
+    .filter((exception) => !exception.resolved)
+    .map((exception) => exception.severity);
+
+  return [Severity.CRITICAL, Severity.HIGH, Severity.LOW].find((severity) =>
+    openSeverities.includes(severity),
+  ) ?? null;
+}
+
+function formatElapsedTime(start: string, end: string): string {
+  const elapsedMinutes = Math.max(
+    0,
+    Math.floor((Date.parse(end) - Date.parse(start)) / 60_000),
+  );
+  const days = Math.floor(elapsedMinutes / 1_440);
+  const hours = Math.floor((elapsedMinutes % 1_440) / 60);
+  const minutes = elapsedMinutes % 60;
+
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
 export function ShipmentTable({
   shipments,
   onMutated,
@@ -125,6 +154,7 @@ export function ShipmentTable({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("ALL");
   const [openOnly, setOpenOnly] = useState(false);
+  const [sortMode, setSortMode] = useState<ShipmentSortMode>("PRIORITY");
 
   const filteredShipments = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
@@ -158,17 +188,24 @@ export function ShipmentTable({
     });
   }, [openOnly, search, severityFilter, shipments, statusFilter]);
 
+  const sortedShipments = useMemo(
+    () => sortShipments(filteredShipments, sortMode),
+    [filteredShipments, sortMode],
+  );
+
   const hasActiveFilters =
     search.trim().length > 0 ||
     statusFilter !== "ALL" ||
     severityFilter !== "ALL" ||
-    openOnly;
+    openOnly ||
+    sortMode !== "PRIORITY";
 
   function resetFilters() {
     setSearch("");
     setStatusFilter("ALL");
     setSeverityFilter("ALL");
     setOpenOnly(false);
+    setSortMode("PRIORITY");
   }
 
   function toggle(id: string) {
@@ -241,17 +278,17 @@ export function ShipmentTable({
             aria-live="polite"
             className="rounded-full border border-primary/10 bg-background/70 px-3 py-1 text-xs font-semibold text-muted-foreground"
           >
-            {filteredShipments.length === shipments.length
+            {sortedShipments.length === shipments.length
               ? `${shipments.length} records`
-              : `${filteredShipments.length} of ${shipments.length} records`}
+              : `${sortedShipments.length} of ${shipments.length} records`}
           </span>
           <Button
             type="button"
             size="sm"
             variant="outline"
-            onClick={() => downloadShipmentsCsv(filteredShipments)}
-            disabled={filteredShipments.length === 0}
-            aria-label={`Export ${filteredShipments.length} filtered shipments as CSV`}
+            onClick={() => downloadShipmentsCsv(sortedShipments)}
+            disabled={sortedShipments.length === 0}
+            aria-label={`Export ${sortedShipments.length} filtered shipments as CSV`}
           >
             <Download className="h-3.5 w-3.5" />
             Export CSV
@@ -262,9 +299,9 @@ export function ShipmentTable({
       <div
         role="search"
         aria-label="Filter shipment queue"
-        className="mb-3 grid gap-2 rounded-lg border border-primary/10 bg-background/45 p-3 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1.5fr)_minmax(145px,0.8fr)_minmax(145px,0.8fr)_auto_auto]"
+        className="mb-3 grid gap-2 rounded-lg border border-primary/10 bg-background/45 p-3 sm:grid-cols-2 xl:grid-cols-3"
       >
-        <label className="relative block">
+        <label className="relative block xl:col-span-2">
           <span className="sr-only">Search shipments</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -310,6 +347,21 @@ export function ShipmentTable({
           </SelectContent>
         </Select>
 
+        <Select
+          value={sortMode}
+          onValueChange={(value) => setSortMode(value as ShipmentSortMode)}
+        >
+          <SelectTrigger aria-label="Sort shipment queue">
+            <SelectValue placeholder="Sort queue" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="PRIORITY">Highest priority</SelectItem>
+            <SelectItem value="RECENT">Recently updated</SelectItem>
+            <SelectItem value="OLDEST">Oldest shipment</SelectItem>
+            <SelectItem value="NEWEST">Newest shipment</SelectItem>
+          </SelectContent>
+        </Select>
+
         <label className="flex min-h-10 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground">
           <input
             type="checkbox"
@@ -345,7 +397,7 @@ export function ShipmentTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredShipments.length === 0 ? (
+            {sortedShipments.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-28 text-center">
                   <div className="space-y-1">
@@ -359,8 +411,9 @@ export function ShipmentTable({
                 </TableCell>
               </TableRow>
             ) : (
-              filteredShipments.map((shipment) => {
+              sortedShipments.map((shipment) => {
                 const openCount = openExceptionCount(shipment);
+                const topSeverity = highestOpenSeverity(shipment);
                 const isExpanded = expanded[shipment.id];
                 const hasExceptions = shipment.exceptions.length > 0;
 
@@ -400,6 +453,7 @@ export function ShipmentTable({
                   <TableCell>
                     <div className="flex items-center gap-1.5">
                       <ShipmentStatusBadge status={shipment.status} />
+                      {topSeverity && <SeverityBadge severity={topSeverity} />}
                       {openCount > 0 && (
                         <span className="rounded-full border border-destructive/15 bg-destructive/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-destructive">
                           {openCount} open
@@ -462,20 +516,34 @@ export function ShipmentTable({
                                 <CategoryBadge category={exception.category} />
                                 <ResolvedBadge resolved={exception.resolved} />
                               </div>
-                              <time
-                                dateTime={exception.createdAt}
-                                className="text-[11px] font-medium tabular-nums text-muted-foreground/80"
-                              >
-                                {new Date(exception.createdAt).toLocaleString(
-                                  undefined,
-                                  {
-                                    month: "short",
-                                    day: "numeric",
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                  },
-                                )}
-                              </time>
+                              <div className="flex items-center gap-2">
+                                <span className="flex items-center gap-1 text-[11px] font-semibold tabular-nums text-muted-foreground">
+                                  <Clock3 className="h-3 w-3" />
+                                  {exception.resolved
+                                    ? `Resolved in ${formatElapsedTime(
+                                        exception.createdAt,
+                                        exception.updatedAt,
+                                      )}`
+                                    : `Open ${formatElapsedTime(
+                                        exception.createdAt,
+                                        new Date().toISOString(),
+                                      )}`}
+                                </span>
+                                <time
+                                  dateTime={exception.createdAt}
+                                  className="text-[11px] font-medium tabular-nums text-muted-foreground/80"
+                                >
+                                  {new Date(exception.createdAt).toLocaleString(
+                                    undefined,
+                                    {
+                                      month: "short",
+                                      day: "numeric",
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                    },
+                                  )}
+                                </time>
+                              </div>
                             </div>
 
                             <div className="mt-2.5 flex items-start gap-2 rounded-md border border-border/60 bg-background/70 px-3 py-2.5">
